@@ -3,3 +3,4 @@ pep8
 Flask
 Flask-SQLAlchemy
 requests
+pyOpenSSL
