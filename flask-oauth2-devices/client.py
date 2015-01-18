@@ -141,6 +141,46 @@ class OAuth2devices(object):
 
         return create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
 
+    def accept_authorization():
+
+        if self.request.method is "POST":
+            error_response = urllib3.response.HTTPResponse({
+            "non-POST on access_token",
+            {'Allow': 'POST'},
+            405)
+            return error_response
+
+        data = requests.json()
+
+        token = data['token']
+        scopes = data['scopes']
+        client_id = data['client_id']
+
+        if client_id is None:
+            raise OAuth2Exception(
+                'missing client_id',
+                type='server_error'
+            )
+
+        if getApp() is None:
+            raise OAuth2Exception(
+                'missing app',
+                type='server_error'
+            )
+
+        auth_code = AuthorizationCode().load(data['auth_code'])
+
+        if auth_code is None:
+            raise OAuth2Exception(
+                'auth code must be sent',
+                type='invalid_request'
+            )
+
+        auth_code.__is_active = True
+
+        resp = make_response(render_template('confirmed.html', auth_code=auth_code))
+        return resp
+
     def create_oauth2_code_response(authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
         """
         The authorization server issues an device code which the device will have
@@ -373,6 +413,8 @@ class AccessToken():
     def create_new_refresh_token():
         return hashlib.sha1("app:" + self.app_id + ":user:" + ":token:" + self.id)
 
+    def contains_scope(scope):
+        return scope in self.scope.split(' ')
 
 class AuthorizationCode():
 
