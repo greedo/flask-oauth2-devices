@@ -1,0 +1,4 @@
+pytest
+pep8
+Flask
+Flask-SQLAlchemy
