@@ -47,6 +47,7 @@
 from functools import wraps
 from flask import request, redirect
 import requests
+import urllib3
 
 class OAuth2devices(object):
 
@@ -67,8 +68,25 @@ class OAuth2devices(object):
 
         if self.request.method is "POST":   
             headers = {'Allow': 'POST'}
-        if 
+            self.request.status_code = 405
 
+        if getApp() is None:
+            raise OAuth2Exception(
+                'Invalid application credentials',
+                type='unauthorized_client'
+            )
+
+        scope = self.request.json()['scope']
+        auth_code = createAuthCode( scope
+
+        self.response = urllib3.response.HTTPResponse({
+            'device_code' : auth_code.getDeviceCode(),
+            'authorize_code ': auth_code.code,
+            'authorize_link': kwargs['authorize_link'],
+            'activate_link': kwargs['activate_link'],
+            'expires_in': kwargs['expires_interval'],
+            'interval': kwargs['polling_interval']})
+        return self.response
 
     def authorize(self, callback=None, state=None, **kwargs):
         """
