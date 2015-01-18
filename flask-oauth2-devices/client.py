@@ -77,16 +77,9 @@ class OAuth2devices(object):
             )
 
         scope = self.request.json()['scope']
-        auth_code = createAuthCode( scope
+        auth_code = createAuthCode( scope )
 
-        self.response = urllib3.response.HTTPResponse({
-            'device_code' : auth_code.getDeviceCode(),
-            'authorize_code ': auth_code.code,
-            'authorize_link': kwargs['authorize_link'],
-            'activate_link': kwargs['activate_link'],
-            'expires_in': kwargs['expires_interval'],
-            'interval': kwargs['polling_interval']})
-        return self.response
+        return create_oauth2_response(authorize_link, activate_link, expires_interval, polling_interval)
 
     def authorize(self, callback=None, state=None, **kwargs):
         """
@@ -110,6 +103,66 @@ class OAuth2devices(object):
         params.update(**kwargs)
 
 
+    def create_oauth2_response(authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
+        """
+        The authorization server issues an device code which the device will have
+        prompt the user to authorize before following the activate link to
+        exchange for a access token. The following parameters are added to the
+        entity-body of the HTTP response with a 200 (OK) status code:
+
+        device_code
+            REQUIRED.  The device code generated on the fly for each device.
+
+        user_code
+            REQUIRED.  The auth code issued by the authorization server.
+
+        authorize_link
+            REQUIRED.  The link where auth code can be exchanged for access 
+                       token.
+
+        activate_link
+            REQUIRED.  The link where auth code can be activated via user
+                       consent flow.
+
+        expires_in
+            RECOMMENDED.  The lifetime in seconds of the access token.  For
+            example, the value "3600" denotes that the access token will
+            expire in one hour from the time the response was generated.
+            If omitted, the authorization server SHOULD provide the
+            expiration time via other means or document the default value.
+
+        interval
+            REQUIRED. The recommended polling interval.
+
+        For example:
+
+            HTTP/1.1 200 OK
+            Content-Type: application/json;charset=UTF-8
+            Cache-Control: no-store
+            Pragma: no-cache
+
+            {
+                "device_code": "73de035b2a7bdcb2c092f4bdfe292898e0657a18",
+                "user_code": "656e6075",
+                "authorize_link": "https://api.example.com/oauth/device/authorize",
+                "activate_link": "https://example.com/activate",
+                "expires_in": 3600,
+                "interval": 15
+            }
+        """
+        self.response = urllib3.response.HTTPResponse({
+            'device_code' : auth_code.getDeviceCode(),
+            'authorize_code ': auth_code.code,
+            'authorize_link': authorize_link,
+            'activate_link': activate_link,
+            'expires_in': expires_interval,
+            'interval': polling_interval}, {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+            'Pragma': 'no-cache'}
+
+        return self.response
+
     def getApp():
         # http://tools.ietf.org/html/rfc2617#section-2
         if self.request.headers['Authorization'] is not None:   
@@ -131,6 +184,16 @@ class OAuth2devices(object):
                     'A valid client secret must be provided along with request made',
                     type='invalid_secret'
                 )
+
+
+class AuthorizationCode():
+
+    def exchange_for_access_token():
+        access_token = 
+
+    def get_device_code():
+        return hmac.new(self.key, 'secret:'.self.id, 'sha1')
+
 
 
 class OAuth2Exception(RuntimeError):
