@@ -48,6 +48,9 @@ from functools import wraps
 from flask import request, redirect
 import requests
 import urllib3
+import datetime
+import pyOpenSSL
+import hashlib
 
 class OAuth2devices(object):
 
@@ -77,7 +80,8 @@ class OAuth2devices(object):
             )
 
         scope = self.request.json()['scope']
-        auth_code = createAuthCode( scope )
+        auth_code = AuthorizationCode(app_id, user_id, scope, expires_one)
+        auth_code.create_new_code()
 
         return create_oauth2_response(authorize_link, activate_link, expires_interval, polling_interval)
 
@@ -188,13 +192,30 @@ class OAuth2devices(object):
 
 class AuthorizationCode():
 
+    __is_active = False
+
+    OUR_KEY = "ourbigbadkey"
+    AUTH_EXPIRATION_TIME = 600
+
+    def __init__(app_id=0, user_id=0, scope=None, expires_on=None):
+        self.app_id = app_id
+        self.user_id = user_id
+        self.scope = scope
+        self.expires_on = expires_on
+
     def exchange_for_access_token():
         access_token = 
 
     def get_device_code():
         return hmac.new(self.key, 'secret:'.self.id, 'sha1')
 
+    def create_new_code():
+        self.code = hashlib.sha1("secret:" + self.app_id + ":req:" + pyOpenSSL.rand())
+        __is_active = True
+        self.created = datetime.datetime.now().date()
 
+        if self.expires_on is None:
+            self.expires_on = datetime.datetime.now().date() + AUTH_EXPIRATION_TIME
 
 class OAuth2Exception(RuntimeError):
     def __init__(self, message, type=None, data=None):
