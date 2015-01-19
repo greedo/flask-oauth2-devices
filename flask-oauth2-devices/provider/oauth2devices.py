@@ -51,8 +51,7 @@ from flask import abort
 from flask import _request_ctx_stack as stack
 from werkzeug import cached_property
 import datetime
-import OpenSSL
-import hashlib
+import json
 from utility import create_response, decode_base64
 
 log = logging.getLogger('flask_oauth2-devices')
@@ -138,10 +137,10 @@ class OAuth2DevicesProvider(object):
         The request is an object, that contains an user object and a
         client object.
         """
-        self._tokensetter = f
+        self._authcodesetter = f
         return f
 
-    def code_handler(self, f):
+    def code_handler(self, authorize_link, activate_link, expires_interval, polling_internal):
         """ Code handler decorator
 
         The device requests an auth_code as part of (A)
@@ -157,27 +156,29 @@ class OAuth2DevicesProvider(object):
         The authorization server MUST authenticate the client. 
         """
 
-        @functools.wraps(f)
-        def decorator(*args, **kwargs):
-            ctx = stack.top
-            if ctx is not None and hasattr(ctx, 'request'):
-                request = ctx.request
-                if request.method != 'POST':
-                    log.warn('Attempted a non-post on the code_handler')
-                    return create_response({'Allow': 'POST'}, 'must use POST', 405)
+        def decorator(f):
+            @functools.wraps(f)
+            def wrapper(*args, **kwargs):
+                ctx = stack.top
+                if ctx is not None and hasattr(ctx, 'request'):
+                    request = ctx.request
+                    if request.method != 'POST':
+                        log.warn('Attempted a non-post on the code_handler')
+                        return create_response({'Allow': 'POST'}, 'must use POST', 405)
 
-                app = self.getApp(request)
+                    app = self.getApp(request)
 
-                if app is None:
-                    raise OAuth2Exception(
-                        'Invalid application credentials',
-                        type='unauthorized_client'
-                    )
+                    if app is None:
+                        raise OAuth2Exception(
+                            'Invalid application credentials',
+                            type='unauthorized_client'
+                        )
 
-                #auth_code = AuthorizationCode(app.user_id, kwargs['scope'], kwargs['expires'])
-                #auth_code.create_new_code()
-                return self.create_oauth2_code_response(kwargs['authorize_link'], kwargs['activate_link'], kwargs['expires_interval'], kwargs['polling_interval'])
+                    auth_code = self._authcodesetter(None, app.client_id, app.user_id)
+                    return self.create_oauth2_code_response(auth_code, authorize_link, activate_link, expires_interval, polling_internal)
 
+                return f(*args, **kwargs)
+            return wrapper
         return decorator
 
     def authorize_handler(self, f):
@@ -275,7 +276,7 @@ class OAuth2DevicesProvider(object):
         #resp = make_response(render_template('confirmed.html', auth_code=auth_code))
         return decorator
 
-    def create_oauth2_code_response(self, authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
+    def create_oauth2_code_response(self, auth_code, authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
         """
         The authorization server issues an device code which the device will have
         prompt the user to authorize before following the activate link to
@@ -325,13 +326,13 @@ class OAuth2DevicesProvider(object):
         response = create_response({
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
-            'Pragma': 'no-cache'}, {
+            'Pragma': 'no-cache'}, json.dumps({
             'device_code' : auth_code.get_device_code(),
             'authorize_code ': auth_code.code,
             'authorize_link': authorize_link,
             'activate_link': activate_link,
             'expires_in': expires_interval,
-            'interval': polling_interval}, 200)
+            'interval': polling_interval}), 200)
 
         return response
 
@@ -405,12 +406,12 @@ class OAuth2DevicesProvider(object):
         response = create_response({
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
-            'Pragma': 'no-cache'}, {
+            'Pragma': 'no-cache'}, json.dumps({
             'access_token' : access_token,
             'token_type ': access_token.token_type,
             'scope': authorize_link,
             'expires_in': expires_interval,
-            'refresh_token': polling_interval}, 200)
+            'refresh_token': polling_interval}), 200)
 
         return response
 
@@ -519,38 +520,15 @@ class AccessToken():
         return hashlib.md5("app:" + self.app_id + ":user:" + self.user_id + ":" + OpenSSL.rand())
 
     def create_new_refresh_token():
-        return hashlib.sha1("app:" + self.app_id + ":user:" + ":token:" + self.id)
+        return str(hashlib.sha1("app:" + self.app_id + ":user:" + ":token:" + self.id))
 
     def contains_scope(scope):
         return scope in self.scope.split(' ')
 
 class AuthorizationCode():
 
-    __is_active = False
-
-    OUR_KEY = "ourbigbadkey"
-    AUTH_EXPIRATION_TIME = 600
-
-    def __init__(app_id=0, user_id=0, scope=None, expires_on=None):
-        self.app_id = app_id
-        self.user_id = user_id
-        self.scope = scope
-        self.expires_on = expires_on
-
     def exchange_for_access_token():
         access_token = None
-
-    def get_device_code():
-        return hmac.new(OUR_KEY, 'secret:'.self.id, 'sha1')
-
-    def create_new_code():
-        self.code = hashlib.sha1("secret:" + self.app_id + ":req:" + OpenSSL.rand())
-        __is_active = True
-        self.created = datetime.datetime.now().date()
-
-        if self.expires_on is None:
-            self.expires_on = datetime.datetime.now().date() + AUTH_EXPIRATION_TIME
-
 
 class OAuth2Exception(RuntimeError):
     def __init__(self, message, type=None, data=None):
