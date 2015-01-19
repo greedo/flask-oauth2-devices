@@ -44,18 +44,67 @@
         application after the user has logged in and approved the request.
 """
 
-from functools import wraps
+import logging
+import functools
 from flask import request, redirect
-import requests
-import urllib3
+from flask import _request_ctx_stack as stack
+from werkzeug import cached_property
 import datetime
-import pyOpenSSL
+import OpenSSL
 import hashlib
+from utility import create_response
 
-class OAuth2devices(object):
+log = logging.getLogger('flask_oauth2-devices')
 
-    def code(self, callback=None, state=None, **kwargs):
+class OAuth2DevicesProvider(object):
+    """
+    Provide secure services for devices using OAuth2.
+    
+    There are two usage modes. One is
+    binding the Flask app instance::
+
+        app = Flask(__name__)
+        oauth = OAuth2DevicesProvider(app)
+
+    The second possibility is to bind the Flask app later::
+        oauth = OAuth2DevicesProvider()
+        def create_app():
+            app = Flask(__name__)
+            oauth.init_app(app)
+            return app
+    """    
+
+    def __init__(self, app=None):
+        self._before_request_funcs = []
+        self._after_request_funcs = []
+        self._invalid_response = None
+        if app:
+            self.init_app(app)
+
+    def init_app(self, app):
         """
+        This callback can be used to initialize an application for the
+        oauth2 provider instance.
+        """
+        self.app = app
+        app.extensions = getattr(app, 'extensions', {})
+        app.extensions['oauth2devices.provider.oauth2devices'] = self
+
+    @cached_property
+    def error_uri(self):
+        """The error page URI.
+        """
+        error_uri = self.app.config.get('OAUTH2_DEVICES_PROVIDER_ERROR_URI')
+        if error_uri:
+            return error_uri
+        error_endpoint = self.app.config.get('OAUTH2_DEVICES_PROVIDER_ERROR_ENDPOINT')
+        if error_endpoint:
+            return url_for(error_endpoint)
+        return '/oauth2/errors'
+
+    def code_handler(self, f):
+        """ Code handler decorator
+
         The device requests an auth_code as part of (A)
         
         For example, the client makes the following HTTP request using
@@ -69,23 +118,32 @@ class OAuth2devices(object):
         The authorization server MUST authenticate the client. 
         """
 
-        if self.request.method is "POST":
-            self.request.headers = {'Allow': 'POST'}
-            self.request.status_code = 405
+        def decorator(*args, **kwargs):
+            @functools.wraps(f)
+            def wrapper(*args, **kwargs):
+                ctx = stack.top
+                if ctx is not None and hasattr(ctx, 'request'):
+                    request = ctx.request
+                    if request.method != 'POST':
+                        log.warm('Attempted a non-post on the code_handler')
+                        return create_response({'Allow': 'POST'}, 'must use POST', 405)
+                try:
+                    kwargs['scopes'] = scopes
+                except Exception as e:
+                    log.warn('Exception: %r', e)
+                    return redirect(add_params_to_uri(
+                        self.error_uri, {'error': 'unknown'}
+                    ))
 
-        if getApp() is None:
-            raise OAuth2Exception(
-                'Invalid application credentials',
-                type='unauthorized_client'
-            )
+                auth_code = AuthorizationCode(app_id, user_id, scope, expires_one)
+                auth_code.create_new_code()
 
-        scope = self.request.json()['scope']
-        auth_code = AuthorizationCode(app_id, user_id, scope, expires_one)
-        auth_code.create_new_code()
+                return f(*args, **kwargs)
+            return wrapper
+        return decorator
+        #return create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
 
-        return create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
-
-    def authorize(self, callback=None, state=None, **kwargs):
+    def authorize_handler(self, f):
         """
         The device uses the auth_code and device code it recieved from (A)
         and attempts to exchange it for an access token.
@@ -141,45 +199,45 @@ class OAuth2devices(object):
 
         return create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
 
-    def accept_authorization():
+    #def accept_authorization():
 
-        if self.request.method is "POST":
-            error_response = urllib3.response.HTTPResponse({
-            "non-POST on access_token",
-            {'Allow': 'POST'},
-            405)
-            return error_response
+        #if self.request.method is "POST":
+        #    error_response = urllib3.response.HTTPResponse({
+        #    "non-POST on access_token",
+        #    {'Allow': 'POST'},
+        #    405)
+        #    return error_response
 
-        data = requests.json()
+        #data = requests.json()
 
-        token = data['token']
-        scopes = data['scopes']
-        client_id = data['client_id']
+        #token = data['token']
+        #scopes = data['scopes']
+        #client_id = data['client_id']
 
-        if client_id is None:
-            raise OAuth2Exception(
-                'missing client_id',
-                type='server_error'
-            )
+        #if client_id is None:
+        #    raise OAuth2Exception(
+        #        'missing client_id',
+        #        type='server_error'
+        #    )
 
-        if getApp() is None:
-            raise OAuth2Exception(
-                'missing app',
-                type='server_error'
-            )
+        #if getApp() is None:
+        #    raise OAuth2Exception(
+        #        'missing app',
+        #        type='server_error'
+        #    )
 
-        auth_code = AuthorizationCode().load(data['auth_code'])
+        #auth_code = AuthorizationCode().load(data['auth_code'])
 
-        if auth_code is None:
-            raise OAuth2Exception(
-                'auth code must be sent',
-                type='invalid_request'
-            )
+        #if auth_code is None:
+        #    raise OAuth2Exception(
+        #        'auth code must be sent',
+        #        type='invalid_request'
+        #    )
 
-        auth_code.__is_active = True
+        #auth_code.__is_active = True
 
-        resp = make_response(render_template('confirmed.html', auth_code=auth_code))
-        return resp
+        #resp = make_response(render_template('confirmed.html', auth_code=auth_code))
+        #return resp
 
     def create_oauth2_code_response(authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
         """
@@ -237,7 +295,7 @@ class OAuth2devices(object):
             'interval': polling_interval}, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
-            'Pragma': 'no-cache'}
+            'Pragma': 'no-cache'})
 
         return self.response
 
@@ -316,7 +374,7 @@ class OAuth2devices(object):
             'refresh_token': polling_interval}, {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
-            'Pragma': 'no-cache'}
+            'Pragma': 'no-cache'})
 
         return self.response
 
@@ -408,7 +466,7 @@ class AccessToken():
         token.refresh_token = create_new_refresh_token()
 
     def create_new_token():
-        return hashlib.md5("app:" + self.app_id + ":user:" + self.user_id + ":" + pyOpenSSL.rand())
+        return hashlib.md5("app:" + self.app_id + ":user:" + self.user_id + ":" + OpenSSL.rand())
 
     def create_new_refresh_token():
         return hashlib.sha1("app:" + self.app_id + ":user:" + ":token:" + self.id)
@@ -430,13 +488,13 @@ class AuthorizationCode():
         self.expires_on = expires_on
 
     def exchange_for_access_token():
-        access_token = 
+        access_token = None
 
     def get_device_code():
         return hmac.new(OUR_KEY, 'secret:'.self.id, 'sha1')
 
     def create_new_code():
-        self.code = hashlib.sha1("secret:" + self.app_id + ":req:" + pyOpenSSL.rand())
+        self.code = hashlib.sha1("secret:" + self.app_id + ":req:" + OpenSSL.rand())
         __is_active = True
         self.created = datetime.datetime.now().date()
 
