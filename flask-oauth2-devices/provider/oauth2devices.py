@@ -47,12 +47,13 @@
 import logging
 import functools
 from flask import request, redirect
+from flask import abort
 from flask import _request_ctx_stack as stack
 from werkzeug import cached_property
 import datetime
 import OpenSSL
 import hashlib
-from utility import create_response
+from utility import create_response, decode_base64
 
 log = logging.getLogger('flask_oauth2-devices')
 
@@ -100,7 +101,45 @@ class OAuth2DevicesProvider(object):
         error_endpoint = self.app.config.get('OAUTH2_DEVICES_PROVIDER_ERROR_ENDPOINT')
         if error_endpoint:
             return url_for(error_endpoint)
-        return '/oauth2/errors'
+        return '/oauth/errors'
+
+    def clientgetter(self, f):
+        """Register a function as the client getter.
+        The function accepts one parameter `client_id`, and it returns
+        a client object with at least these information:
+            - client_id: A random string
+            - client_secret: A random string
+            - client_type: A string represents if it is `confidential`
+            - redirect_uris: A list of redirect uris
+        Implement the client getter::
+            @oauth.clientgetter
+            def get_client(client_id):
+                client = get_client_model(client_id)
+                # Client is an object
+                return client
+        """
+        self._clientgetter = f
+        return f
+
+    def authcodesetter(self, f):
+        """Register a function to save the auth code.
+        The setter accepts two parameters at least, one is a auth code,
+        the other is request::
+            @oauth.authcodesetter
+            def save_auth_code(code, request, *args, **kwargs):
+                save_code(code, request.client, request.user)
+        The parameter token is a dict, that looks like::
+            {
+                u'code': u'6JwgO77P',
+                u'scope': u'read edit'
+                u'expires_in': 3600,
+                u'scope': u'edit'
+            }
+        The request is an object, that contains an user object and a
+        client object.
+        """
+        self._tokensetter = f
+        return f
 
     def code_handler(self, f):
         """ Code handler decorator
@@ -118,30 +157,28 @@ class OAuth2DevicesProvider(object):
         The authorization server MUST authenticate the client. 
         """
 
+        @functools.wraps(f)
         def decorator(*args, **kwargs):
-            @functools.wraps(f)
-            def wrapper(*args, **kwargs):
-                ctx = stack.top
-                if ctx is not None and hasattr(ctx, 'request'):
-                    request = ctx.request
-                    if request.method != 'POST':
-                        log.warm('Attempted a non-post on the code_handler')
-                        return create_response({'Allow': 'POST'}, 'must use POST', 405)
-                try:
-                    kwargs['scopes'] = scopes
-                except Exception as e:
-                    log.warn('Exception: %r', e)
-                    return redirect(add_params_to_uri(
-                        self.error_uri, {'error': 'unknown'}
-                    ))
+            ctx = stack.top
+            if ctx is not None and hasattr(ctx, 'request'):
+                request = ctx.request
+                if request.method != 'POST':
+                    log.warn('Attempted a non-post on the code_handler')
+                    return create_response({'Allow': 'POST'}, 'must use POST', 405)
 
-                auth_code = AuthorizationCode(app_id, user_id, scope, expires_one)
-                auth_code.create_new_code()
+                app = self.getApp(request)
 
-                return f(*args, **kwargs)
-            return wrapper
+                if app is None:
+                    raise OAuth2Exception(
+                        'Invalid application credentials',
+                        type='unauthorized_client'
+                    )
+
+                #auth_code = AuthorizationCode(app.user_id, kwargs['scope'], kwargs['expires'])
+                #auth_code.create_new_code()
+                return self.create_oauth2_code_response(kwargs['authorize_link'], kwargs['activate_link'], kwargs['expires_interval'], kwargs['polling_interval'])
+
         return decorator
-        #return create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
 
     def authorize_handler(self, f):
         """
@@ -162,84 +199,83 @@ class OAuth2DevicesProvider(object):
             }
         """
 
-        if self.request.method is "POST":
-            self.request.headers = {'Allow': 'POST'}
-            self.request.status_code = 405
+        @functools.wraps(f)
+        def decorator(*args, **kwargs):
+            ctx = stack.top
+            if ctx is not None and hasattr(ctx, 'request'):
+                request = ctx.request
+                if request.method != 'POST':
+                    log.warn('Attempted a non-post on the code_handler')
+                    return create_response({'Allow': 'POST'}, 'must use POST', 405)
 
-        data = requests.json()
-        auth_code = AuthorizationCode().load(data['auth_code'])
+                data = requests.json()
+                auth_code = AuthorizationCode().load(data['auth_code'])
 
-        if auth_code is None:
-            raise OAuth2Exception(
-                'This token could not be found',
-                type='invalid_token'
-            )
+                if auth_code is None:
+                    raise OAuth2Exception(
+                        'This token could not be found',
+                        type='invalid_token'
+                    )
 
-        if auth_code.expires_on is None and auth_code.expires_on < datetime.datetime.now():
-            raise OAuth2Exception(
-                'Authorization code has expired',
-                type='invalid_token'
-            )
+                if auth_code.expires_on is None and auth_code.expires_on < datetime.datetime.now():
+                    raise OAuth2Exception(
+                        'Authorization code has expired',
+                        type='invalid_token'
+                    )
 
-        device_code = data['device_code']
+                device_code = data['device_code']
 
-        if auth_code.device_code is False:
-            raise OAuth2Exception(
-                'You have not authorized this device code yet',
-                type='not_authorized'
-            )
+                if auth_code.device_code is False:
+                    raise OAuth2Exception(
+                        'You have not authorized this device code yet',
+                        type='not_authorized'
+                    )
 
-        if auth_code.get_device_code() != device_code:
-            raise OAuth2Exception(
-                'Your auth code does not match the device',
-                type='invalid_token'
-            )
+                if auth_code.get_device_code() != device_code:
+                    raise OAuth2Exception(
+                        'Your auth code does not match the device',
+                        type='invalid_token'
+                    )
 
-        access_token = auth_code.exchange_for_access_token()
+                access_token = auth_code.exchange_for_access_token()
+                return self.create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
+        return decorator
 
-        return create_oauth2_code_response(authorize_link, activate_link, expires_interval, polling_interval)
+    # TODO convert this flow
+    def accept_authorization():
 
-    #def accept_authorization():
+        @functools.wraps(f)
+        def decorator(*args, **kwargs):
+            ctx = stack.top
+            if ctx is not None and hasattr(ctx, 'request'):
+                request = ctx.request
+                if request.method != 'POST':
+                    log.warn('Attempted a non-post on the code_handler')
+                    return create_response({'Allow': 'POST'}, 'must use POST', 405)
 
-        #if self.request.method is "POST":
-        #    error_response = urllib3.response.HTTPResponse({
-        #    "non-POST on access_token",
-        #    {'Allow': 'POST'},
-        #    405)
-        #    return error_response
+                #token = data['token']
+                #scopes = data['scopes']
 
-        #data = requests.json()
+                if self.getApp(request) is None:
+                    raise OAuth2Exception(
+                        'missing app',
+                        type='server_error'
+                    )
 
-        #token = data['token']
-        #scopes = data['scopes']
-        #client_id = data['client_id']
+                #auth_code = AuthorizationCode().load(data['auth_code'])
 
-        #if client_id is None:
-        #    raise OAuth2Exception(
-        #        'missing client_id',
-        #        type='server_error'
-        #    )
+                #if auth_code is None:
+                #    raise OAuth2Exception(
+                #        'auth code must be sent',
+                #        type='invalid_request'
+                #    )
 
-        #if getApp() is None:
-        #    raise OAuth2Exception(
-        #        'missing app',
-        #        type='server_error'
-        #    )
-
-        #auth_code = AuthorizationCode().load(data['auth_code'])
-
-        #if auth_code is None:
-        #    raise OAuth2Exception(
-        #        'auth code must be sent',
-        #        type='invalid_request'
-        #    )
-
-        #auth_code.__is_active = True
+                #auth_code.__is_active = True
 
         #resp = make_response(render_template('confirmed.html', auth_code=auth_code))
-        #return resp
+        return decorator
 
-    def create_oauth2_code_response(authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
+    def create_oauth2_code_response(self, authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
         """
         The authorization server issues an device code which the device will have
         prompt the user to authorize before following the activate link to
@@ -286,20 +322,20 @@ class OAuth2DevicesProvider(object):
                 "interval": 15
             }
         """
-        self.response = urllib3.response.HTTPResponse({
+        response = create_response({
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+            'Pragma': 'no-cache'}, {
             'device_code' : auth_code.get_device_code(),
             'authorize_code ': auth_code.code,
             'authorize_link': authorize_link,
             'activate_link': activate_link,
             'expires_in': expires_interval,
-            'interval': polling_interval}, {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store',
-            'Pragma': 'no-cache'})
+            'interval': polling_interval}, 200)
 
-        return self.response
+        return response
 
-    def create_oauth2_token_response(access_token=None):
+    def create_oauth2_token_response(self, access_token=None):
         """
         The authorization server issues an access token and optional refresh
         token, and constructs the response by adding the following parameters
@@ -366,39 +402,53 @@ class OAuth2DevicesProvider(object):
 
         http://tools.ietf.org/html/rfc6749#section-5.1
         """
-        self.response = urllib3.response.HTTPResponse({
+        response = create_response({
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store',
+            'Pragma': 'no-cache'}, {
             'access_token' : access_token,
             'token_type ': access_token.token_type,
             'scope': authorize_link,
             'expires_in': expires_interval,
-            'refresh_token': polling_interval}, {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store',
-            'Pragma': 'no-cache'})
+            'refresh_token': polling_interval}, 200)
 
-        return self.response
+        return response
 
-    def getApp():
+    def getApp(self, request):
         # http://tools.ietf.org/html/rfc2617#section-2
-        if self.request.headers['Authorization'] is not None:   
-            auth_header = self.request.headers['Authorization']
+
+        client_id = None
+        client_secret = None
+
+        if "Authorization" in request.headers:
+            auth_header = request.headers['Authorization']
 
             if "basic" in auth_header:
                 auth = decode_base64(auth_header[6:]).split(':')
                 client_id = auth[0]
                 client_secret = auth[1]
 
-            if client_id is None:
-                raise OAuth2Exception(
-                    'A valid client ID must be provided along with request made',
-                    type='invalid_client'
-                )
+        if client_id is None:
+            raise OAuth2Exception(
+                'A valid client ID must be provided along with request made',
+                type='invalid_client'
+            )
 
-            if client_secret is None:
-                raise OAuth2Exception(
-                    'A valid client secret must be provided along with request made',
-                    type='invalid_secret'
-                )
+        app = self._clientgetter(client_id)
+
+        if app is None:
+            raise OAuth2Exception(
+                'A valid client ID must be provided along with request made',
+                type='invalid_client'
+            )
+
+        if client_secret is not None and client_secret == app.client_secret:
+            return app
+
+        raise OAuth2Exception(
+            'A valid client secret must be provided along with request made',
+            type='invalid_secret'
+        )
 
 class AccessToken():
     """
