@@ -242,7 +242,7 @@ class OAuth2DevicesProvider(object):
 
                     device_code = data.get('device_code')
 
-                    if auth_code.get_device_code() is None:
+                    if not auth_code.is_active:
                         raise OAuth2Exception(
                             'You have not authorized this device code yet',
                             type='not_authorized'
