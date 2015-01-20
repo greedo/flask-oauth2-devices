@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ app_id }} wants to access your service account</title>
+</head>
+<body>
+    <h3>If you authroize this service it will have access to:</h3>
+    {% for scope in scopes %}
+        {{ scope }}
+    {% endfor %}
+    <h3>If you authroize this service it will not have access to:</h3>
+    {% for nscope in non_scopes %}
+        {{ nscope }}
+    {% endfor %}
+    <form action="" method="post" name="query">
+        {{ form.csrf_token }}
+        <input type="submit" value="Allow">
+        <br>
+    </form>
+</body>
+</html>
