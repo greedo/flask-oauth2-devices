@@ -261,7 +261,7 @@ class OAuth2DevicesProvider(object):
             return wrapper
         return decorator
 
-    def confirm_authorization_handler():
+    def confirm_authorization_view(template):
         """When consumer confirm the authorization."""
 
         def decorator(f):
@@ -274,16 +274,29 @@ class OAuth2DevicesProvider(object):
                         log.warn('Attempted a non-post on the code_handler')
                         return create_response({'Allow': 'POST'}, 'must use POST', 405)
 
-                    token = data['token']
-                    scopes = data['scopes']
+                    data = request.values
 
-                    if self.getApp(request) is None:
+                    # public is our default scope in this case
+                    if data.get('scopes') is None:
+                        scopes = ['public']
+                    else:
+                        scopes = data.get('scopes').split()
+
+                    if data.get('client_id') is None or request.user is None:
+                        raise OAuth2Exception(
+                            'missing values for view',
+                            type='server_error'
+                        )
+
+                    app = self._clientgetter(data.get('client_id'))
+
+                    if app is None:
                         raise OAuth2Exception(
                             'missing app',
                             type='server_error'
                         )
 
-                    auth_code = self._authcodegetter(data['auth_code'])
+                    auth_code = self._authcodegetter(data.get('auth_code'))
 
                     if auth_code is None:
                         raise OAuth2Exception(
@@ -293,7 +306,7 @@ class OAuth2DevicesProvider(object):
 
                     auth_code._is_active = True
 
-                    #resp = make_response(render_template('confirmed.html', auth_code=auth_code))
+                    return make_response(render_template(kwargs['template'], auth_code=auth_code.code, app=app))
                 return f(*args, **kwargs)
             return wrapper
         return decorator
@@ -472,6 +485,7 @@ class OAuth2DevicesProvider(object):
             'A valid client secret must be provided along with request made',
             type='invalid_secret'
         )
+
 
 class OAuth2Exception(RuntimeError):
     def __init__(self, message, type=None, data=None):
