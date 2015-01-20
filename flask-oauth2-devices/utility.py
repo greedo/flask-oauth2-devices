@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from flask import request, Response
 from oauthlib.common import to_unicode, bytes_type
 
@@ -23,3 +24,10 @@ def create_response(headers, body, status):
 
     response.status_code = status
     return response
+
+def json_serial(obj):
+    """JSON serializer for objects not serializable by default json code"""
+
+    if isinstance(obj, datetime):
+        serial = obj.isoformat()
+        return serial
