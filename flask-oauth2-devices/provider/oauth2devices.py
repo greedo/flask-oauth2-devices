@@ -261,56 +261,6 @@ class OAuth2DevicesProvider(object):
             return wrapper
         return decorator
 
-    def confirm_authorization_view(template):
-        """When consumer confirm the authorization."""
-
-        def decorator(f):
-            @functools.wraps(f)
-            def wrapper(*args, **kwargs):
-                ctx = stack.top
-                if ctx is not None and hasattr(ctx, 'request'):
-                    request = ctx.request
-                    if request.method != 'POST':
-                        log.warn('Attempted a non-post on the code_handler')
-                        return create_response({'Allow': 'POST'}, 'must use POST', 405)
-
-                    data = request.values
-
-                    # public is our default scope in this case
-                    if data.get('scopes') is None:
-                        scopes = ['public']
-                    else:
-                        scopes = data.get('scopes').split()
-
-                    if data.get('client_id') is None or request.user is None:
-                        raise OAuth2Exception(
-                            'missing values for view',
-                            type='server_error'
-                        )
-
-                    app = self._clientgetter(data.get('client_id'))
-
-                    if app is None:
-                        raise OAuth2Exception(
-                            'missing app',
-                            type='server_error'
-                        )
-
-                    auth_code = self._authcodegetter(data.get('auth_code'))
-
-                    if auth_code is None:
-                        raise OAuth2Exception(
-                            'auth code must be sent',
-                            type='invalid_request'
-                        )
-
-                    auth_code._is_active = True
-
-                    return make_response(render_template(kwargs['template'], auth_code=auth_code.code, app=app))
-                return f(*args, **kwargs)
-            return wrapper
-        return decorator
-
     def create_oauth2_code_response(self, auth_code, authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
         """
         The authorization server issues an device code which the device will have

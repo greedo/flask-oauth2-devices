@@ -3,7 +3,7 @@ import hmac
 import hashlib
 from binascii import hexlify
 from datetime import datetime, timedelta
-from flask import Flask
+from flask import Flask, abort, render_template
 from flask_sqlalchemy import SQLAlchemy
 from oauth2devices import OAuth2DevicesProvider
 
@@ -26,6 +26,73 @@ def code():
 @oauth.authorize_handler()
 def authorize():
     return None
+
+
+@app.route('/activate', methods=['GET', 'POST'])
+def authorize_view():
+
+    # CSRF verification
+    if request.method == "POST":
+        token = session.pop('_csrf_token', None)
+        if not token or token != request.form.get('_csrf_token'):
+            abort(403)
+
+    auth_code = authcodegetter(request.args.get('auth_code'))
+
+    if auth_code is None or auth_code.expires < datetime.utcnow():
+        raise OAuth2Exception(
+            'Invalid authorization code',
+            type='invalid_request'
+        )
+
+    # public is our default scope in this case
+    if request.args.get('scopes') is None:
+        scopes = ['public']
+    else:
+        scopes = data.get('scopes').split()
+
+    # scope validation here
+    
+    # permissions check here
+
+    return render_template('auth_code_authorize.html',
+                            cur_user=current_user(),
+                            scopes=scopes,
+                            app=auth_code.client_id)
+
+
+@app.route('/activate', methods=['GET', 'POST'])
+def confirm_view():
+    
+    # public is our default scope in this case
+    if request.args.get('scopes') is None:
+        scopes = ['public']
+    else:
+        scopes = data.get('scopes').split()
+
+    if data.get('client_id') is None or request.user is None:
+        raise OAuth2Exception(
+            'missing values for view',
+            type='server_error'
+        )
+
+    app = clientgetter(data.get('client_id'))
+
+    if app is None:
+        raise OAuth2Exception(
+            'missing app',
+            type='server_error'
+        )
+
+    auth_code = authcodegetter(data.get('auth_code'))
+
+    if auth_code is None:
+        raise OAuth2Exception(
+            'auth code must be sent',
+            type='invalid_request'
+        )
+
+    auth_code._is_active = True
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -182,6 +249,12 @@ class Code(db.Model):
 
     def exchange_for_access_token(self, app):
         return Token().create_access_token(app.client_id, app.user_id, app.scopes, "grant_auth_code")
+
+def current_user():
+    if 'id' in session:
+        uid = session['id']
+        return User.query.get(uid)
+    return None
 
 @oauth.clientgetter
 def load_client(client_id):
