@@ -84,10 +84,10 @@ def authorization_accept_view():
 
     user_code.__is_active = True
 
-    return redirect('/confirmed?user_code='+str(user_code.code))
+    return redirect('/confirmed?user_code='+str(user_code.code)+"&client_id="+str(user_code.client_id))
 
-@app.route('/confirm', methods=['GET', 'POST'])
-def comfirm_view():
+@app.route('/confirmed', methods=['GET', 'POST'])
+def comfirmed_view():
 
     if request.args.get('client_id') is None:
         return render_template('app_auth_error.html')
@@ -97,8 +97,9 @@ def comfirm_view():
     if user_code is None:
         return render_template('app_auth_error.html')
 
-    return render_template('app_auth_confirm.html',
-                           client_id=user_code.client_id)
+    resp = make_response(render_template('app_auth_confirm.html', client_id=user_code.client_id))
+    resp.headers.extend({'X-Frame-Options': 'DENY'})
+    return resp
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
