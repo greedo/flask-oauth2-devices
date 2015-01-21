@@ -3,13 +3,22 @@ import hmac
 import hashlib
 from binascii import hexlify
 from datetime import datetime, timedelta
-from flask import Flask, abort, render_template
+from flask import Flask, abort, render_template, request, session
 from flask_sqlalchemy import SQLAlchemy
-from oauth2devices import OAuth2DevicesProvider
+from flask.ext.wtf import Form
+from wtforms import StringField, SelectField
+from wtforms.validators import DataRequired
+from oauth2devices import OAuth2DevicesProvider, OAuth2Exception
+
+from forms import ActivateForm, AuthorizeForm
 
 app = Flask(__name__)
+app.config.update(
+    WTF_CSRF_ENABLED = True,
+    SECRET_KEY = 'dont-fuck-with-us'
+)
 app.config.update({
-    'SQLALCHEMY_DATABASE_URI': 'sqlite:///db.sqlite',
+    'SQLALCHEMY_DATABASE_URI': 'sqlite:///db.sqlite'
 })
 db = SQLAlchemy(app)
 oauth = OAuth2DevicesProvider(app)
@@ -27,42 +36,36 @@ def code():
 def authorize():
     return None
 
-
 @app.route('/activate', methods=['GET', 'POST'])
+def activate_view():
+
+    form = ActivateForm()
+    if form.validate_on_submit():
+        if request.method == "POST":
+
+            auth_code = load_auth_code(request.values.get('user_code'))
+
+            if auth_code is None or auth_code.expires < datetime.utcnow():
+                return render_template('app_auth_error.html')
+
+            return redirect('/oauth/authorize?user_code='+str(auth_code.code)+"&client_id="+str(auth_code.client_id))
+
+    return render_template('user_code_activate.html',
+                            form=form)
+
+@app.route('/oauth/authorize ', methods=['GET', 'POST'])
 def authorize_view():
 
-    # CSRF verification
-    if request.method == "POST":
-        token = session.pop('_csrf_token', None)
-        if not token or token != request.form.get('_csrf_token'):
-            abort(403)
-
-    auth_code = authcodegetter(request.args.get('auth_code'))
-
-    if auth_code is None or auth_code.expires < datetime.utcnow():
-        raise OAuth2Exception(
-            'Invalid authorization code',
-            type='invalid_request'
-        )
-
-    # public is our default scope in this case
-    if request.args.get('scopes') is None:
-        scopes = ['public']
+    form = AuthorizeForm()
+    if form.validate_on_submit():
+        if request.method == "POST":
+            pass
     else:
-        scopes = data.get('scopes').split()
-
-    # scope validation here
-    
-    # permissions check here
-
-    return render_template('auth_code_authorize.html',
-                            cur_user=current_user(),
-                            scopes=scopes,
-                            app=auth_code.client_id)
+        return render_template('app_auth_error.html')
 
 
 @app.route('/activate', methods=['GET', 'POST'])
-def confirm_view():
+def comfirm_view():
     
     # public is our default scope in this case
     if request.args.get('scopes') is None:
@@ -254,6 +257,8 @@ def current_user():
     if 'id' in session:
         uid = session['id']
         return User.query.get(uid)
+    if 'id' in request.args:
+        return User.query.get(request.args.get('id'))
     return None
 
 @oauth.clientgetter
