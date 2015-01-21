@@ -3,7 +3,7 @@ import hmac
 import hashlib
 from binascii import hexlify
 from datetime import datetime, timedelta
-from flask import Flask, abort, render_template, request, session
+from flask import Flask, abort, render_template, request, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask.ext.wtf import Form
 from wtforms import StringField, SelectField
@@ -43,12 +43,12 @@ def activate_view():
     if form.validate_on_submit():
         if request.method == "POST":
 
-            auth_code = load_auth_code(request.values.get('user_code'))
+            user_code = load_auth_code(request.values.get('user_code'))
 
-            if auth_code is None or auth_code.expires < datetime.utcnow():
+            if user_code is None or user_code.expires < datetime.utcnow():
                 return render_template('app_auth_error.html')
 
-            return redirect('/oauth/authorize?user_code='+str(auth_code.code)+"&client_id="+str(auth_code.client_id))
+            return redirect('/oauth/authorize?user_code='+str(user_code.code)+"&client_id="+str(user_code.client_id))
 
     return render_template('user_code_activate.html',
                             form=form)
@@ -64,38 +64,19 @@ def authorize_view():
         return render_template('app_auth_error.html')
 
 
-@app.route('/activate', methods=['GET', 'POST'])
+@app.route('/confirm', methods=['GET', 'POST'])
 def comfirm_view():
-    
-    # public is our default scope in this case
-    if request.args.get('scopes') is None:
-        scopes = ['public']
-    else:
-        scopes = data.get('scopes').split()
 
-    if data.get('client_id') is None or request.user is None:
-        raise OAuth2Exception(
-            'missing values for view',
-            type='server_error'
-        )
+    if request.args.get('client_id') is None:
+        return render_template('app_auth_error.html')
 
-    app = clientgetter(data.get('client_id'))
+    user_code = load_auth_code(request.values.get('user_code'))
 
-    if app is None:
-        raise OAuth2Exception(
-            'missing app',
-            type='server_error'
-        )
+    if user_code is None:
+        return render_template('app_auth_error.html')
 
-    auth_code = authcodegetter(data.get('auth_code'))
-
-    if auth_code is None:
-        raise OAuth2Exception(
-            'auth code must be sent',
-            type='invalid_request'
-        )
-
-    auth_code._is_active = True
+    return render_template('app_auth_confirm.html',
+                           client_id=user_code.client_id)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
