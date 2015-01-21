@@ -3,7 +3,7 @@ import hmac
 import hashlib
 from binascii import hexlify
 from datetime import datetime, timedelta
-from flask import Flask, abort, render_template, request, session, redirect
+from flask import Flask, abort, render_template, make_response, request, session, redirect
 from flask_sqlalchemy import SQLAlchemy
 from flask.ext.wtf import Form
 from wtforms import StringField, SelectField
@@ -48,21 +48,43 @@ def activate_view():
             if user_code is None or user_code.expires < datetime.utcnow():
                 return render_template('app_auth_error.html')
 
-            return redirect('/oauth/authorize?user_code='+str(user_code.code)+"&client_id="+str(user_code.client_id))
+            return redirect('/oauth/authorization/accept?user_code='+str(user_code.code)+"&client_id="+str(user_code.client_id))
 
-    return render_template('user_code_activate.html',
-                            form=form)
+    resp = make_response(render_template('user_code_activate.html', form=form))
+    resp.headers.extend({'X-Frame-Options': 'DENY'})
+    return resp
 
-@app.route('/oauth/authorize ', methods=['GET', 'POST'])
-def authorize_view():
+@app.route('/oauth/authorization/accept', methods=['POST'])
+def authorization_accept_view():
 
-    form = AuthorizeForm()
-    if form.validate_on_submit():
-        if request.method == "POST":
-            pass
+    if request.method != "POST":
+        resp = make_response("non-POST on access token", 405)
+        resp.headers.extend({'Allow': 'POST'})
+        return resp
+
+    # public is our default scope in this case
+    if request.values.get('scopes') is None:
+        scopes = ['public']
     else:
-        return render_template('app_auth_error.html')
+        scopes = request.values.get('scopes').split()
 
+    client_id = request.values.get('client_id')
+    user_id = request.values.get('user_id')
+
+    if client_id is None or user_id is None:
+        return make_response("missing values from auth", 500)
+
+    # we can load our app by client_id here 
+    # and throw a 500 if we have a problem
+
+    user_code = load_auth_code(request.values.get('user_code'))
+
+    if user_code is None:
+        return make_response("auth code must be sent", 400)
+
+    user_code.__is_active = True
+
+    return redirect('/confirmed?user_code='+str(user_code.code))
 
 @app.route('/confirm', methods=['GET', 'POST'])
 def comfirm_view():
