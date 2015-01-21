@@ -48,19 +48,23 @@ def activate_view():
             if user_code is None or user_code.expires < datetime.utcnow():
                 return render_template('app_auth_error.html')
 
-            return redirect('/oauth/authorization/accept?user_code='+str(user_code.code)+"&client_id="+str(user_code.client_id))
+            return redirect("/oauth/authorization/accept?user_code="+str(user_code.code))
 
     resp = make_response(render_template('user_code_activate.html', form=form))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
     return resp
 
-@app.route('/oauth/authorization/accept', methods=['POST'])
+@app.route('/oauth/authorization/accept', methods=['GET', 'POST'])
 def authorization_accept_view():
 
-    if request.method != "POST":
-        resp = make_response("non-POST on access token", 405)
-        resp.headers.extend({'Allow': 'POST'})
-        return resp
+    form = AuthorizeForm()
+    if form.validate_on_submit():
+        if request.method == "POST":
+            return redirect("/confirmed?user_code="+str(user_code.code)+"&client_id="+str(user_code.client_id)+"&user_id=1")
+
+    user_code = load_auth_code(request.values.get('user_code'))
+
+    all_scopes = ['private']
 
     # public is our default scope in this case
     if request.values.get('scopes') is None:
@@ -68,11 +72,28 @@ def authorization_accept_view():
     else:
         scopes = request.values.get('scopes').split()
 
-    client_id = request.values.get('client_id')
-    user_id = request.values.get('user_id')
+    non_scopes = [scope for scope in all_scopes if scope not in scopes]
 
-    if client_id is None or user_id is None:
-        return make_response("missing values from auth", 500)
+    resp = make_response(render_template('access_token_authorize.html',
+                                         app_id=user_code.client_id,
+                                         scopes=scopes,
+                                         non_scopes=non_scopes))
+    resp.headers.extend({'X-Frame-Options': 'DENY'})
+    return resp
+
+@app.route('/confirmed', methods=['POST'])
+def confirmed_view():
+
+    # just an extra check in case we didn't block GET in the decorator
+    if request.method != "POST":
+        resp = make_response("non-POST on access token", 405)
+        resp.headers.extend({'Allow': 'POST'})
+        return resp
+
+    client_id = request.values.get('client_id')
+
+    if client_id is None:
+        return make_response("missing client_id", 500)
 
     # we can load our app by client_id here 
     # and throw a 500 if we have a problem
@@ -83,19 +104,6 @@ def authorization_accept_view():
         return make_response("auth code must be sent", 400)
 
     user_code.__is_active = True
-
-    return redirect('/confirmed?user_code='+str(user_code.code)+"&client_id="+str(user_code.client_id))
-
-@app.route('/confirmed', methods=['GET', 'POST'])
-def comfirmed_view():
-
-    if request.args.get('client_id') is None:
-        return render_template('app_auth_error.html')
-
-    user_code = load_auth_code(request.values.get('user_code'))
-
-    if user_code is None:
-        return render_template('app_auth_error.html')
 
     resp = make_response(render_template('app_auth_confirm.html', client_id=user_code.client_id))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
