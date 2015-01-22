@@ -10,7 +10,7 @@ from wtforms import StringField, SelectField
 from wtforms.validators import DataRequired
 from oauth2devices import OAuth2DevicesProvider, OAuth2Exception
 
-from forms import ActivateForm, AuthorizeForm
+from forms import ActivateForm
 
 app = Flask(__name__)
 app.config.update(
@@ -57,11 +57,6 @@ def activate_view():
 @app.route('/oauth/authorization/accept', methods=['GET', 'POST'])
 def authorization_accept_view():
 
-    form = AuthorizeForm()
-    if form.validate_on_submit():
-        if request.method == "POST":
-            return redirect("/confirmed?user_code="+str(user_code.code)+"&client_id="+str(user_code.client_id)+"&user_id=1")
-
     user_code = load_auth_code(request.values.get('user_code'))
 
     all_scopes = ['private']
@@ -76,6 +71,8 @@ def authorization_accept_view():
 
     resp = make_response(render_template('access_token_authorize.html',
                                          app_id=user_code.client_id,
+                                         client_id=user_code.client_id,
+                                         user_code=user_code.code,
                                          scopes=scopes,
                                          non_scopes=non_scopes))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
@@ -103,7 +100,8 @@ def confirmed_view():
     if user_code is None:
         return make_response("auth code must be sent", 400)
 
-    user_code.__is_active = True
+    user_code.is_active = 1
+    db.session.commit()
 
     resp = make_response(render_template('app_auth_confirm.html', client_id=user_code.client_id))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
@@ -241,20 +239,13 @@ class Code(db.Model):
     _scopes = db.Column(db.Text)
     expires = db.Column(db.DateTime)
     created = db.Column(db.DateTime)
-    _is_active = db.Column(db.Integer)
+    is_active = db.Column(db.Integer)
 
     @property
     def scopes(self):
         if self._scopes:
             return self._scopes.split()
         return []
-
-    @property
-    def is_active(self):
-        if self._is_active:
-            return True
-        else:
-            return False
 
     def generate_new_code(self, client_id):
         return hashlib.sha1("secret:" + client_id + ":req:" + str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
@@ -299,7 +290,7 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
         _scopes = ('public private' if code is None else code['scope']),
         expires=expires,
         created=created,
-        _is_active=False
+        is_active=0
     )
 
     if cod.code is None:

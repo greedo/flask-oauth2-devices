@@ -13,7 +13,9 @@
     {% for nscope in non_scopes %}
         <p>{{ nscope }}</p>
     {% endfor %}
-    <form action="" method="post" name="query">
+    <form action="/confirmed " method="post" name="query">
+        <input type="hidden" name="client_id" id="client_id" value="{{ client_id }}">
+        <input type="hidden" name="user_code" id="user_code" value="{{ user_code }}">
         <input type="submit" value="Allow">
     </form>
 </body>

@@ -46,8 +46,7 @@
 
 import logging
 import functools
-from flask import request, redirect
-from flask import abort
+from flask import request
 from flask import _request_ctx_stack as stack
 from werkzeug import cached_property
 import datetime
@@ -242,7 +241,7 @@ class OAuth2DevicesProvider(object):
 
                     device_code = data.get('device_code')
 
-                    if not auth_code.is_active:
+                    if auth_code.is_active == 0:
                         raise OAuth2Exception(
                             'You have not authorized this device code yet',
                             type='not_authorized'
