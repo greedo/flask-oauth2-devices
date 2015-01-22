@@ -15,7 +15,7 @@ from forms import ActivateForm
 app = Flask(__name__)
 app.config.update(
     WTF_CSRF_ENABLED = True,
-    SECRET_KEY = 'dont-fuck-with-us'
+    SECRET_KEY = 'our-big-bad-key'
 )
 app.config.update({
     'SQLALCHEMY_DATABASE_URI': 'sqlite:///db.sqlite'
@@ -24,7 +24,7 @@ db = SQLAlchemy(app)
 oauth = OAuth2DevicesProvider(app)
 
 AUTH_EXPIRATION_TIME = 3600
-OUR_KEY = 'ourbigbadkey'
+OUR_KEY = 'our-big-bad-key'
 
 @app.route('/oauth/device', methods=['POST'])
 @oauth.code_handler("https://api.example.com/oauth/device/authorize", "https://example.com/activate", 600, 600)
