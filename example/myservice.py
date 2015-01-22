@@ -3,7 +3,7 @@ import hmac
 import hashlib
 from binascii import hexlify
 from datetime import datetime, timedelta
-from flask import Flask, abort, render_template, make_response, request, session, redirect
+from flask import Flask, abort, render_template, make_response, request
 from flask_sqlalchemy import SQLAlchemy
 from flask.ext.wtf import Form
 from wtforms import StringField, SelectField

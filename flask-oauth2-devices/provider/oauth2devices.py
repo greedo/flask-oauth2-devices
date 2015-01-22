@@ -109,7 +109,7 @@ class OAuth2DevicesProvider(object):
             - client_secret: A random string
             - client_type: A string represents if it is `confidential`
             - redirect_uris: A list of redirect uris
-        Implement the client getter::
+        Implement the client getter:
             @oauth.clientgetter
             def get_client(client_id):
                 client = get_client_model(client_id)
@@ -122,18 +122,14 @@ class OAuth2DevicesProvider(object):
     def authcodesetter(self, f):
         """Register a function to save the auth code.
 
-        The setter accepts two parameters at least, one is a auth code,
-        the other is request::
+        The setter accepts five parameters, a least
+            - code: our auth_code, if none we will generate one
+            - client_id: the client we want to create a new auth_code for
+            - user_id: the user we want to create a new auth_code for
+        Implement the auth_code setter:
             @oauth.authcodesetter
-            def save_auth_code(code, request, *args, **kwargs):
-                save_code(code, request.client, request.user)
-        The parameter token is a dict, that looks like::
-            {
-                u'code': u'6JwgO77P',
-                u'scope': u'read edit'
-                u'expires_in': 3600,
-                u'scope': u'edit'
-            }
+            def save_auth_code(code, client_id, user_id, *args, **kwargs)
+                auth_code_model.save_code(code, client, user_id)
         """
         self._authcodesetter = f
         return f
@@ -249,7 +245,7 @@ class OAuth2DevicesProvider(object):
 
                     if auth_code.get_device_code() != device_code:
                         raise OAuth2Exception(
-                            'Your auth code does not match the device',
+                            'Your user code does not match the device',
                             type='invalid_token'
                         )
 
