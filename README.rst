@@ -8,7 +8,7 @@ Features
 - Support for OAuth2 device flow servers
 - Friendly API (similar to flask-oauthlib)
 
-More feature may be added in the future just open an github `issue <https://github.com/greedo/flask-oauth2-devices/issues>`__
+More features may be added in the future just open an github `issue <https://github.com/greedo/flask-oauth2-devices/issues>`__
 and add the enhancement label.
 
 Installation
