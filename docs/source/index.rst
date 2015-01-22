@@ -13,6 +13,12 @@ Flask OAuth2 for devices documentation
    by `Google <https://developers.google.com/accounts/docs/OAuth2ForDevices>`__
    and `Section 3.7 of the OAuth 2.05 specification <http://tools.ietf.org/html/draft-ietf-oauth-v2-05#section-3.7>`__.
 
+Features
+--------
+
+- Support for OAuth2 device flow servers
+- Friendly API (similar to flask-oauthlib)
+
 Guide
 ^^^^^
 
@@ -20,5 +26,16 @@ Guide
    :maxdepth: 3
 
    introduction
-   license
+   install
+   oauth2
 
+Additional Notes
+----------------
+
+Contribution guide and legal information are here.
+
+.. toctree::
+   :maxdepth: 3
+
+   authors
+   license
