@@ -14,8 +14,8 @@ from forms import ActivateForm
 
 app = Flask(__name__)
 app.config.update(
-    WTF_CSRF_ENABLED = True,
-    SECRET_KEY = 'our-big-bad-key'
+    WTF_CSRF_ENABLED=True,
+    SECRET_KEY='our-big-bad-key'
 )
 app.config.update({
     'SQLALCHEMY_DATABASE_URI': 'sqlite:///db.sqlite'
@@ -26,15 +26,19 @@ oauth = OAuth2DevicesProvider(app)
 AUTH_EXPIRATION_TIME = 3600
 OUR_KEY = 'our-big-bad-key'
 
+
 @app.route('/oauth/device', methods=['POST'])
-@oauth.code_handler("https://api.example.com/oauth/device/authorize", "https://example.com/activate", 600, 600)
+@oauth.code_handler("https://api.example.com/oauth/device/authorize",
+                    "https://example.com/activate", 600, 600)
 def code():
     return None
+
 
 @app.route('/oauth/device/authorize', methods=['POST'])
 @oauth.authorize_handler()
 def authorize():
     return None
+
 
 @app.route('/activate', methods=['GET', 'POST'])
 def activate_view():
@@ -48,11 +52,13 @@ def activate_view():
             if user_code is None or user_code.expires < datetime.utcnow():
                 return render_template('app_auth_error.html')
 
-            return redirect("/oauth/authorization/accept?user_code="+str(user_code.code))
+            return redirect("/oauth/authorization/accept?user_code=" + \
+                            str(user_code.code))
 
     resp = make_response(render_template('user_code_activate.html', form=form))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
     return resp
+
 
 @app.route('/oauth/authorization/accept', methods=['GET', 'POST'])
 def authorization_accept_view():
@@ -78,6 +84,7 @@ def authorization_accept_view():
     resp.headers.extend({'X-Frame-Options': 'DENY'})
     return resp
 
+
 @app.route('/confirmed', methods=['POST'])
 def confirmed_view():
 
@@ -92,7 +99,7 @@ def confirmed_view():
     if client_id is None:
         return make_response("missing client_id", 500)
 
-    # we can load our app by client_id here 
+    # we can load our app by client_id here
     # and throw a 500 if we have a problem
 
     user_code = load_auth_code(request.values.get('user_code'))
@@ -103,13 +110,16 @@ def confirmed_view():
     user_code.is_active = 1
     db.session.commit()
 
-    resp = make_response(render_template('app_auth_confirm.html', client_id=user_code.client_id))
+    resp = make_response(render_template('app_auth_confirm.html',
+                         client_id=user_code.client_id))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
     return resp
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), unique=True)
+
 
 class Client(db.Model):
     client_id = db.Column(db.String(40), primary_key=True)
@@ -140,6 +150,7 @@ class Client(db.Model):
         if self._default_scopes:
             return self._default_scopes.split()
         return []
+
 
 class Token(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -181,7 +192,7 @@ class Token(db.Model):
             access_token=None,
             refresh_token=None,
             token_type=token_type,
-            _scopes = ("public private" if scope is None else ' '.join(scope)),
+            _scopes=("public private" if scope is None else ' '.join(scope)),
             expires=expires,
             created=created,
         )
@@ -201,7 +212,7 @@ class Token(db.Model):
             access_token=self.access_token,
             refresh_token=None,
             token_type=token_type,
-            _scopes = ("public private" if scope is None else ' '.join(scope)),
+            _scopes=("public private" if scope is None else ' '.join(scope)),
             expires=expires,
             created=created,
         )
@@ -214,13 +225,18 @@ class Token(db.Model):
         return tok
 
     def _generate_token(self):
-        return hashlib.sha1("app:" + str(self.client_id) + ":user:" + str(self.user_id) + str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
+        return hashlib.sha1("app:" + str(self.client_id) + \
+                            ":user:" + str(self.user_id) + \
+                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def _generate_refresh_token(self):
-        return hashlib.sha1("app:" + str(self.client_id) + ":user:" + str(self.user_id) + ":access_token:" + str(self.id)).hexdigest()
+        return hashlib.sha1("app:" + str(self.client_id) + \
+                            ":user:" + str(self.user_id) + \
+                            ":access_token:" + str(self.id)).hexdigest()
 
     def contains_scope(scope):
         return scope in self.scope.split(' ')
+
 
 class Code(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -248,13 +264,19 @@ class Code(db.Model):
         return []
 
     def generate_new_code(self, client_id):
-        return hashlib.sha1("secret:" + client_id + ":req:" + str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
+        return hashlib.sha1("secret:" + client_id + ":req:" + \
+                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def get_device_code(self):
-        return hmac.new(OUR_KEY, "secret:"+str(self.id), hashlib.sha1).hexdigest()
+        return hmac.new(OUR_KEY, "secret:" + \
+        str(self.id), hashlib.sha1).hexdigest()
 
     def exchange_for_access_token(self, app):
-        return Token().create_access_token(app.client_id, app.user_id, app.scopes, "grant_auth_code")
+        return Token().create_access_token(app.client_id,
+                                           app.user_id,
+                                           app.scopes,
+                                           "grant_auth_code")
+
 
 def current_user():
     if 'id' in session:
@@ -264,9 +286,11 @@ def current_user():
         return User.query.get(request.args.get('id'))
     return None
 
+
 @oauth.clientgetter
 def load_client(client_id):
     return Client.query.filter_by(client_id=client_id).first()
+
 
 @oauth.authcodesetter
 def save_auth_code(code, client_id, user_id, *args, **kwargs):
@@ -279,14 +303,15 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
     for c in codes:
         db.session.delete(c)
 
-    expires_in = (AUTH_EXPIRATION_TIME if code is None else code.pop('expires_in'))
+    expires_in = (AUTH_EXPIRATION_TIME if code is None else \
+    code.pop('expires_in'))
     expires = datetime.utcnow() + timedelta(seconds=expires_in)
     created = datetime.utcnow()
 
     cod = Code(
         client_id=client_id,
         user_id=user_id,
-        code = (None if code is None else code['code']),
+        code=(None if code is None else code['code']),
         _scopes = ('public private' if code is None else code['scope']),
         expires=expires,
         created=created,
@@ -299,6 +324,7 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
     db.session.add(cod)
     db.session.commit()
     return cod
+
 
 @oauth.authcodegetter
 def load_auth_code(code):

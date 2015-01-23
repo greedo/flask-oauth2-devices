@@ -18,8 +18,12 @@ else:
 
 from utility import create_response, decode_base64, to_bytes, json_serial
 
+
 def test_to_bytes():
     assert to_bytes("test") == "test"
 
+
 def test_json_serial():
-    assert json.dumps(datetime.utcnow(), default=json_serial).replace("\"", "").replace("T", "").split(".")[0] == str(datetime.utcnow()).split(".")[0].replace(" ", "")
+    assert json.dumps(datetime.utcnow(),
+                      default=json_serial).replace("\"", "").replace("T", "").split(".")[0] == \
+        str(datetime.utcnow()).split(".")[0].replace(" ", "")
