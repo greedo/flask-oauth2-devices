@@ -82,3 +82,167 @@ An example of the data model in SQLAlchemy (SQLAlchemy is not required)::
                 return self._default_scopes.split()
             return []
 
+
+Configuration
+-------------
+
+The oauth provider has some built-in defaults, you can change them with Flask
+config:
+
+================================== ==========================================
+`OAUTH2_PROVIDER_ERROR_URI`        The error page when there is an error,
+                                   default value is ``'/oauth/errors'``.
+`OAUTH2_PROVIDER_ERROR_ENDPOINT`   You can also configure the error page uri
+                                   with an endpoint name.
+`OAUTH2_PROVIDER_CODE_EXPIRES_IN`  Default OAuth code expires time, default
+                                   is ``3600``.
+================================== ==========================================
+
+Implementation
+--------------
+
+The implementation of authorization flow needs two handlers, one is the code
+handler generate the initial user_code and device_code, the other is the authorization
+handler for the device to request an access token once the user has authorized the device.
+
+Before the implementing of authorize and token handler, we need to set up some
+getters and setters to communicate with the database.
+
+Client getter
+`````````````
+
+A client getter is required. It tells which client is sending the requests,
+creating the getter with decorator::
+
+    @oauth.clientgetter
+    def load_client(client_id):
+        return Client.query.filter_by(client_id=client_id).first()
+
+
+Auth code getter and setter
+```````````````````````````
+
+Auth code getter and setter are required. They are used in the authorization flow,
+implemented with decorators::
+
+    @oauth.authcodegetter
+    def load_auth_code(code):
+        return Code.query.filter_by(code=code).first()
+
+
+In our example our auth code setter also creates creates new auth codes::
+
+    @oauth.authcodesetter
+    def save_auth_code(code, client_id, user_id, *args, **kwargs):
+
+        expires_in = (AUTH_EXPIRATION_TIME if code is None else code.pop('expires_in'))
+        expires = datetime.utcnow() + timedelta(seconds=expires_in)
+        created = datetime.utcnow()
+
+        cod = Code(
+            client_id=client_id,
+            user_id=user_id,
+            code = (None if code is None else code['code']),
+            _scopes = ('public private' if code is None else code['scope']),
+            expires=expires,
+            created=created,
+            is_active=0
+        )
+
+        if cod.code is None:
+            cod.code = cod.generate_new_code(cod.client_id)[:8]
+
+        db.session.add(cod)
+        db.session.commit()
+        return cod
+
+In the sample code, there is a ``get_current_user`` method, that will return
+the current user object, you should implement it yourself.
+
+Token creation
+``````````````
+
+You are free to generate access tokens in whatever way you want. We have provided
+an example for creating access tokens and refresh tokens on the token object::
+
+     def create_access_token(self, client_id, user_id, scope, token_type):
+
+        expires_in = AUTH_EXPIRATION_TIME
+        expires = datetime.utcnow() + timedelta(seconds=expires_in)
+        created = datetime.utcnow()
+
+        tok = Token(
+            client_id=client_id,
+            user_id=user_id,
+            access_token=None,
+            refresh_token=None,
+            token_type=token_type,
+            _scopes = ("public private" if scope is None else ' '.join(scope)),
+            expires=expires,
+            created=created,
+        )
+
+        if tok.access_token is None:
+            tok.access_token = tok._generate_token()
+
+        db.session.add(tok)
+        db.session.commit()
+        return tok
+
+    def refresh(self, token):
+
+        tok = Token(
+            client_id=self.client_id,
+            user_id=self.user_id,
+            access_token=self.access_token,
+            refresh_token=None,
+            token_type=token_type,
+            _scopes = ("public private" if scope is None else ' '.join(scope)),
+            expires=expires,
+            created=created,
+        )
+
+        if tok.refresh_token is None:
+            tok.refresh_token = tok._generate_refresh_token()
+
+        db.session.add(tok)
+        db.session.commit()
+        return tok
+
+The crytographic functions you use to generate the actual tokens are totally up
+to you, however we have some example in the example code.
+
+Code handler
+````````````
+
+Code handler is a decorator for generating Auth Codes. You don't need
+to do much::
+
+    @app.route('/oauth/device', methods=['POST'])
+    @oauth.code_handler("https://api.example.com/oauth/device/authorize", "https://example.com/activate", 600, 600)
+    def code():
+        return None
+
+It expects the following parameters
+
+- Authroize URL
+- Activate URL
+- Expires Internal
+- Recommended Polling Internal 
+
+Authorize handler
+`````````````````
+
+Authorize handler is a decorator for the device to request an access token once the 
+user has authorized the device. You don't need to do much::
+
+    @app.route('/oauth/device/authorize', methods=['POST'])
+    @oauth.authorize_handler()
+    def authorize():
+        return None
+
+Example for OAuth 2 for devices
+-------------------------------
+
+Here is an example of OAuth 2 server: https://github.com/greedo/flask-oauth2-devices/example
+
