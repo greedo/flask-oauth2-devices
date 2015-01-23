@@ -51,7 +51,7 @@ from flask import _request_ctx_stack as stack
 from werkzeug import cached_property
 import datetime
 import json
-from utility import create_response, decode_base64, json_serial
+from ..utility import create_response, decode_base64, json_serial
 
 log = logging.getLogger('flask_oauth2-devices')
 

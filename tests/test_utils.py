@@ -3,6 +3,7 @@
 
 import six
 import base64
+import json
 import pytest
 from datetime import datetime
 from flask import request, Response
@@ -15,10 +16,10 @@ if six.PY3:
 else:
     bytes_type = str
 
-from flaskoauth2devices import utility
+from utility import create_response, decode_base64, to_bytes, json_serial
 
-def test_to_bytes(text):
+def test_to_bytes():
     assert to_bytes("test") == "test"
 
-def test_json_serial(obj):
-    assert json.dumps(datetime.utcnow(), default=json_serial).replace("\"", "").replace("T", "") == str(datetime.datetime.utcnow())
+def test_json_serial():
+    assert json.dumps(datetime.utcnow(), default=json_serial).replace("\"", "").replace("T", "").split(".")[0] == str(datetime.utcnow()).split(".")[0].replace(" ", "")

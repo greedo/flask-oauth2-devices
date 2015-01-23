@@ -4,8 +4,10 @@ from datetime import datetime
 from flask import request, Response
 
 if six.PY3:
+    unicode_type = str
     bytes_type = bytes
 else:
+    unicode_type = unicode
     bytes_type = str
 
 def to_unicode(data):
@@ -27,17 +29,17 @@ def to_unicode(data):
 
     return data
 
-def to_bytes(text, encoding='utf-8'):
+def to_bytes(text):
     """Make sure text is bytes type."""
     if not text:
         return text
     if not isinstance(text, bytes_type):
-        text = text.encode(encoding)
+        text = text.encode('utf-8')
     return text
 
 def decode_base64(text):
     """Decode base64 string from utf-8."""
-    text = to_bytes(text, encoding)
+    text = to_bytes(text)
     return to_unicode(base64.b64decode(text))
 
 def create_response(headers, body, status):
