@@ -10,6 +10,7 @@ else:
     unicode_type = unicode
     bytes_type = str
 
+
 def to_unicode(data):
     """Convert utf-8 to unicode."""
     if isinstance(data, bytes_type):
@@ -25,9 +26,11 @@ def to_unicode(data):
         else:
             if hasattr(data, 'items'):
                 data = data.items()
-            return dict(((to_unicode(k, 'UTF-8'), to_unicode(v, 'UTF-8')) for k, v in data))
+            return dict(((to_unicode(k, 'UTF-8'),
+                        to_unicode(v, 'UTF-8')) for k, v in data))
 
     return data
+
 
 def to_bytes(text):
     """Make sure text is bytes type."""
@@ -37,10 +40,12 @@ def to_bytes(text):
         text = text.encode('utf-8')
     return text
 
+
 def decode_base64(text):
     """Decode base64 string from utf-8."""
     text = to_bytes(text)
     return to_unicode(base64.b64decode(text))
+
 
 def create_response(headers, body, status):
     """Create response object for Flask."""
@@ -50,6 +55,7 @@ def create_response(headers, body, status):
 
     response.status_code = status
     return response
+
 
 def json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""

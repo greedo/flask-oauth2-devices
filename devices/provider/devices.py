@@ -1,9 +1,9 @@
 """ 4.4 OAUTH 2 for devices
 
-    Applications that run on devices with limited input capabilities 
-    (such as game consoles, video cameras, and printers) can access a 
-    Compliant API on behalf of a user, but the user must have separate 
-    access to a computer or device with richer input capabilities. 
+    Applications that run on devices with limited input capabilities
+    (such as game consoles, video cameras, and printers) can access a
+    Compliant API on behalf of a user, but the user must have separate
+    access to a computer or device with richer input capabilities.
     The flow is as follows:
 
     +---------+                                  +---------------+
@@ -55,10 +55,11 @@ from ..utility import create_response, decode_base64, json_serial
 
 log = logging.getLogger('flask_oauth2-devices')
 
+
 class OAuth2DevicesProvider(object):
     """
     Provide secure services for devices using OAuth2.
-    
+
     There are two usage modes. One is
     binding the Flask app instance::
 
@@ -71,7 +72,7 @@ class OAuth2DevicesProvider(object):
             app = Flask(__name__)
             oauth.init_app(app)
             return app
-    """    
+    """
 
     def __init__(self, app=None):
         self._before_request_funcs = []
@@ -96,7 +97,8 @@ class OAuth2DevicesProvider(object):
         error_uri = self.app.config.get('OAUTH2_DEVICES_PROVIDER_ERROR_URI')
         if error_uri:
             return error_uri
-        error_endpoint = self.app.config.get('OAUTH2_DEVICES_PROVIDER_ERROR_ENDPOINT')
+        error_endpoint = \
+            self.app.config.get('OAUTH2_DEVICES_PROVIDER_ERROR_ENDPOINT')
         if error_endpoint:
             return url_for(error_endpoint)
         return '/oauth/errors'
@@ -149,11 +151,14 @@ class OAuth2DevicesProvider(object):
         self._authcodegetter = f
         return f
 
-    def code_handler(self, authorize_link, activate_link, expires_interval, polling_internal):
+    def code_handler(self,
+                     authorize_link,
+                     activate_link,
+                     expires_interval,
+                     polling_internal):
         """ Code handler decorator
 
         The device requests an auth_code as part of (A)
-        
         For example, the client makes the following HTTP request using
         transport-only security (with extra line breaks for display purposes
         only):
@@ -162,7 +167,7 @@ class OAuth2DevicesProvider(object):
             Host: server.example.com
             Content-Type: application/x-www-form-urlencoded
 
-        The authorization server MUST authenticate the client. 
+        The authorization server MUST authenticate the client.
         """
 
         def decorator(f):
@@ -173,7 +178,8 @@ class OAuth2DevicesProvider(object):
                     request = ctx.request
                     if request.method != 'POST':
                         log.warn('Attempted a non-post on the code_handler')
-                        return create_response({'Allow': 'POST'}, 'must use POST', 405)
+                        return create_response({'Allow': 'POST'},
+                                               'must use POST', 405)
 
                     app = self.getApp(request)
 
@@ -183,9 +189,14 @@ class OAuth2DevicesProvider(object):
                             type='unauthorized_client'
                         )
 
-                    auth_code = self._authcodesetter(None, app.client_id, app.user_id)
-                    return self.create_oauth2_code_response(auth_code, authorize_link, activate_link, expires_interval, polling_internal)
-
+                    auth_code = self._authcodesetter(None,
+                                                     app.client_id,
+                                                     app.user_id)
+                    return self.create_oauth2_code_response(auth_code,
+                                                            authorize_link,
+                                                            activate_link,
+                                                            expires_interval,
+                                                            polling_internal)
                 return f(*args, **kwargs)
             return wrapper
         return decorator
@@ -218,7 +229,8 @@ class OAuth2DevicesProvider(object):
                     request = ctx.request
                     if request.method != 'POST':
                         log.warn('Attempted a non-post on the code_handler')
-                        return create_response({'Allow': 'POST'}, 'must use POST', 405)
+                        return create_response({'Allow': 'POST'},
+                                               'must use POST', 405)
 
                     data = request.values
                     auth_code = self._authcodegetter(data.get('auth_code'))
@@ -229,7 +241,8 @@ class OAuth2DevicesProvider(object):
                             type='invalid_token'
                         )
 
-                    if auth_code.expires is None and auth_code.expires < datetime.utcnow():
+                    if auth_code.expires is None
+                        and auth_code.expires < datetime.utcnow():
                         raise OAuth2Exception(
                             'Authorization code has expired',
                             type='invalid_token'
@@ -249,19 +262,26 @@ class OAuth2DevicesProvider(object):
                             type='invalid_token'
                         )
 
-                    access_token = auth_code.exchange_for_access_token(auth_code)
+                    access_token = \
+                        auth_code.exchange_for_access_token(auth_code)
                     return self.create_oauth2_token_response(access_token)
 
                 return f(*args, **kwargs)
             return wrapper
         return decorator
 
-    def create_oauth2_code_response(self, auth_code, authorize_link=None, activate_link=None, expires_interval=0, polling_interval=0):
+    def create_oauth2_code_response(self,
+                                    auth_code,
+                                    authorize_link=None,
+                                    activate_link=None,
+                                    expires_interval=0,
+                                    polling_interval=0):
         """
-        The authorization server issues an device code which the device will have
-        prompt the user to authorize before following the activate link to
-        exchange for a access token. The following parameters are added to the
-        entity-body of the HTTP response with a 200 (OK) status code:
+        The authorization server issues an device code which the device
+        will have prompt the user to authorize before following the activate
+        link to exchange for a access token. The following parameters are
+        added to the entity-body of the HTTP response with a
+        200 (OK) status code:
 
         device_code
             REQUIRED.  The device code generated on the fly for each device.
@@ -270,7 +290,7 @@ class OAuth2DevicesProvider(object):
             REQUIRED.  The auth code issued by the authorization server.
 
         authorize_link
-            REQUIRED.  The link where auth code can be exchanged for access 
+            REQUIRED.  The link where auth code can be exchanged for access
                        token.
 
         activate_link
@@ -297,7 +317,8 @@ class OAuth2DevicesProvider(object):
             {
                 "device_code": "73de035b2a7bdcb2c092f4bdfe292898e0657a18",
                 "user_code": "656e6075",
-                "authorize_link": "https://api.example.com/oauth/device/authorize",
+                "authorize_link":
+                "https://api.example.com/oauth/device/authorize",
                 "activate_link": "https://example.com/activate",
                 "expires_in": 3600,
                 "interval": 15
@@ -307,12 +328,12 @@ class OAuth2DevicesProvider(object):
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
             'Pragma': 'no-cache'}, json.dumps({
-            'device_code' : auth_code.get_device_code(),
-            'user_code ': auth_code.code,
-            'authorize_link': authorize_link,
-            'activate_link': activate_link,
-            'expires_in': expires_interval,
-            'interval': polling_interval}), 200)
+                'device_code': auth_code.get_device_code(),
+                'user_code ': auth_code.code,
+                'authorize_link': authorize_link,
+                'activate_link': activate_link,
+                'expires_in': expires_interval,
+                'interval': polling_interval}), 200)
 
         return response
 
@@ -387,11 +408,13 @@ class OAuth2DevicesProvider(object):
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store',
             'Pragma': 'no-cache'}, json.dumps({
-            'access_token' : access_token.access_token,
-            'token_type ': access_token.token_type,
-            'scope': access_token.scopes,
-            'expires_in': json.dumps(access_token.expires, default=json_serial).replace("\"", ""),
-            'refresh_token': None}), 200)
+                'access_token': access_token.access_token,
+                'token_type ': access_token.token_type,
+                'scope': access_token.scopes,
+                'expires_in': json.dumps(access_token.expires,
+                                         default=json_serial).\
+                                         replace("\"", ""),
+                'refresh_token': None}), 200)
 
         return response
 

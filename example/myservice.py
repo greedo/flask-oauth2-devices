@@ -269,7 +269,7 @@ class Code(db.Model):
 
     def get_device_code(self):
         return hmac.new(OUR_KEY, "secret:" + \
-        str(self.id), hashlib.sha1).hexdigest()
+                        str(self.id), hashlib.sha1).hexdigest()
 
     def exchange_for_access_token(self, app):
         return Token().create_access_token(app.client_id,
@@ -304,7 +304,7 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
         db.session.delete(c)
 
     expires_in = (AUTH_EXPIRATION_TIME if code is None else \
-    code.pop('expires_in'))
+                  code.pop('expires_in'))
     expires = datetime.utcnow() + timedelta(seconds=expires_in)
     created = datetime.utcnow()
 
