@@ -1,3 +1,5 @@
+|PyPI version| |Travis-CI|
+
 **flask-oauth2-devices** is an extension to Flask that helps you to create the device flow for OAuth2 providers.
 It is based on the implementation provided by `Google <https://developers.google.com/accounts/docs/OAuth2ForDevices>`__
 and `Section 3.7 of the OAuth 2.05 specification <http://tools.ietf.org/html/draft-ietf-oauth-v2-05#section-3.7>`__.
@@ -75,3 +77,8 @@ License
     LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
+
+.. |PyPI version| image:: https://badge.fury.io/py/flask-oauth2-devices.png
+   :target: http://badge.fury.io/py/flask-oauth2-devices
+.. |Travis-CI| image:: https://travis-ci.org/greedo/flask-oauth2-devices.png?branch=master
+   :target: https://travis-ci.org/greedo/flask-oauth2-devices
