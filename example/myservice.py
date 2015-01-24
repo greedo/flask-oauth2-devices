@@ -52,8 +52,8 @@ def activate_view():
             if user_code is None or user_code.expires < datetime.utcnow():
                 return render_template('app_auth_error.html')
 
-            return redirect("/oauth/authorization/accept?user_code=" + \
-                            str(user_code.code))
+            return redirect("/oauth/authorization/accept?user_code=\
+                            " + str(user_code.code))
 
     resp = make_response(render_template('user_code_activate.html', form=form))
     resp.headers.extend({'X-Frame-Options': 'DENY'})
@@ -225,14 +225,14 @@ class Token(db.Model):
         return tok
 
     def _generate_token(self):
-        return hashlib.sha1("app:" + str(self.client_id) + \
-                            ":user:" + str(self.user_id) + \
-                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
+        return hashlib.sha1("app:" + str(self.client_id) + \    # NOQA
+                            ":user:" + str(self.user_id) + \    # NOQA
+                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()   # NOQA
 
     def _generate_refresh_token(self):
-        return hashlib.sha1("app:" + str(self.client_id) + \
-                            ":user:" + str(self.user_id) + \
-                            ":access_token:" + str(self.id)).hexdigest()
+        return hashlib.sha1("app:" + str(self.client_id) + \    # NOQA
+                            ":user:" + str(self.user_id) + \    # NOQA
+                            ":access_token:" + str(self.id)).hexdigest()    # NOQA
 
     def contains_scope(scope):
         return scope in self.scope.split(' ')
@@ -264,11 +264,11 @@ class Code(db.Model):
         return []
 
     def generate_new_code(self, client_id):
-        return hashlib.sha1("secret:" + client_id + ":req:" + \
+        return hashlib.sha1("secret:" + client_id + ":req:" + \     # NOQA
                             str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def get_device_code(self):
-        return hmac.new(OUR_KEY, "secret:" + \
+        return hmac.new(OUR_KEY, "secret:" + \  # NOQA
                         str(self.id), hashlib.sha1).hexdigest()
 
     def exchange_for_access_token(self, app):
@@ -303,7 +303,7 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
     for c in codes:
         db.session.delete(c)
 
-    expires_in = (AUTH_EXPIRATION_TIME if code is None else \
+    expires_in = (AUTH_EXPIRATION_TIME if code is None else \   # NOQA
                   code.pop('expires_in'))
     expires = datetime.utcnow() + timedelta(seconds=expires_in)
     created = datetime.utcnow()

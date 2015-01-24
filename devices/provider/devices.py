@@ -241,8 +241,8 @@ class OAuth2DevicesProvider(object):
                             type='invalid_token'
                         )
 
-                    if auth_code.expires is None
-                        and auth_code.expires < datetime.utcnow():
+                    if auth_code.expires is None \
+                       and auth_code.expires < datetime.utcnow():
                         raise OAuth2Exception(
                             'Authorization code has expired',
                             type='invalid_token'
@@ -412,8 +412,8 @@ class OAuth2DevicesProvider(object):
                 'token_type ': access_token.token_type,
                 'scope': access_token.scopes,
                 'expires_in': json.dumps(access_token.expires,
-                                         default=json_serial).\
-                                         replace("\"", ""),
+                                         default=json_serial).replace("\"", "\
+                                         "),
                 'refresh_token': None}), 200)
 
         return response
