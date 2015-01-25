@@ -46,7 +46,7 @@
 
 import logging
 import functools
-from flask import request
+from flask import request, abort
 from flask import _request_ctx_stack as stack
 from werkzeug import cached_property
 import datetime
@@ -102,6 +102,19 @@ class OAuth2DevicesProvider(object):
         if error_endpoint:
             return url_for(error_endpoint)
         return '/oauth/errors'
+
+    def invalid_response(self, f):
+        """Register a function for responsing with invalid request.
+        When an invalid request proceeds to :meth:`require_oauth`, we can
+        handle the request with the registered function. The function
+        accepts one parameter, which is an oauthlib Request object::
+            @oauth.invalid_response
+            def invalid_require_oauth(req):
+                return jsonify(message=req.error_message), 401
+        If no function is registered, it will return with ``abort(401)``.
+        """
+        self._invalid_response = f
+        return f
 
     def clientgetter(self, f):
         """Register a function as the client getter.
@@ -269,6 +282,52 @@ class OAuth2DevicesProvider(object):
                 return f(*args, **kwargs)
             return wrapper
         return decorator
+
+    def _verify_request(self, scopes):
+        """ verify recieved oauth2 data
+        """
+        if request.method == 'POST':
+            return False
+
+        uri = request.base_url
+        if request.query_string:
+            uri += '?' + request.query_string.decode('utf-8')
+
+        data = request.form.to_dict()
+        headers = dict(request.headers)
+
+        if ['oauth_version', 'oauth_nonce', 'oauth_timestamp\
+         ', 'user' 'client'] not in data.keys():
+            return False
+
+        return True
+
+    def require_oauth(self, *scopes):
+        """Protect resource with specified scopes."""
+        def wrapper(f):
+            @functools.wraps(f)
+            def decorated(*args, **kwargs):
+
+                if hasattr(request, 'oauth') and request.oauth:
+                    return f(*args, **kwargs)
+
+                if self._verify_request(scopes):
+                    if self._invalid_response:
+                        return self._invalid_response(request)
+                    return abort(401)
+
+                request.oauth = req
+                return create_response({
+                    'Content-Type': 'application/json'
+                    }, json.dumps({'method': method,
+                                   'values': values,
+                                   'headers': headers,
+                                   'uri': uri
+                                  }), 200)
+
+                return f(*args, **kwargs)
+            return decorated
+        return wrapper
 
     def create_oauth2_code_response(self,
                                     auth_code,

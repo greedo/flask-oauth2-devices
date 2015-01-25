@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask.ext.wtf import Form
 from wtforms import StringField, SelectField
 from wtforms.validators import DataRequired
-from oauth2devices import OAuth2DevicesProvider, OAuth2Exception
+from devices import OAuth2DevicesProvider, OAuth2Exception
 
 from forms import ActivateForm
 
@@ -115,6 +115,11 @@ def confirmed_view():
     resp.headers.extend({'X-Frame-Options': 'DENY'})
     return resp
 
+
+@app.route('/oauth/protect', methods=['GET', 'POST'])
+@oauth.require_oauth()
+def protect_handler():
+    return None
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -225,13 +230,13 @@ class Token(db.Model):
         return tok
 
     def _generate_token(self):
-        return hashlib.sha1("app:" + str(self.client_id) + \    # NOQA
-                            ":user:" + str(self.user_id) + \    # NOQA
+        return hashlib.sha1("app:" + str(self.client_id) + \
+                            ":user:" + str(self.user_id) + \
                             str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()   # NOQA
 
     def _generate_refresh_token(self):
-        return hashlib.sha1("app:" + str(self.client_id) + \    # NOQA
-                            ":user:" + str(self.user_id) + \    # NOQA
+        return hashlib.sha1("app:" + str(self.client_id) + \
+                            ":user:" + str(self.user_id) + \
                             ":access_token:" + str(self.id)).hexdigest()    # NOQA
 
     def contains_scope(scope):
@@ -264,12 +269,12 @@ class Code(db.Model):
         return []
 
     def generate_new_code(self, client_id):
-        return hashlib.sha1("secret:" + client_id + ":req:" + \     # NOQA
-                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
+        return hashlib.sha1("secret:" + client_id + ":req:" + \
+                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()   #NOQA
 
     def get_device_code(self):
-        return hmac.new(OUR_KEY, "secret:" + \  # NOQA
-                        str(self.id), hashlib.sha1).hexdigest()
+        return hmac.new(OUR_KEY, "secret:" + \
+                        str(self.id), hashlib.sha1).hexdigest()     #NOQA
 
     def exchange_for_access_token(self, app):
         return Token().create_access_token(app.client_id,
@@ -303,8 +308,8 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
     for c in codes:
         db.session.delete(c)
 
-    expires_in = (AUTH_EXPIRATION_TIME if code is None else \   # NOQA
-                  code.pop('expires_in'))
+    expires_in = (AUTH_EXPIRATION_TIME if code is None else \
+                  code.pop('expires_in'))   #NOQA
     expires = datetime.utcnow() + timedelta(seconds=expires_in)
     created = datetime.utcnow()
 
