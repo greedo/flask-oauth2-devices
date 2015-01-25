@@ -317,14 +317,6 @@ class OAuth2DevicesProvider(object):
                     return abort(401)
 
                 request.oauth = req
-                return create_response({
-                    'Content-Type': 'application/json'
-                    }, json.dumps({'method': method,
-                                   'values': values,
-                                   'headers': headers,
-                                   'uri': uri
-                                  }), 200)
-
                 return f(*args, **kwargs)
             return decorated
         return wrapper

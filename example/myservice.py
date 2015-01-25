@@ -121,6 +121,7 @@ def confirmed_view():
 def protect_handler():
     return None
 
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), unique=True)
@@ -230,14 +231,20 @@ class Token(db.Model):
         return tok
 
     def _generate_token(self):
+        # NOQA
         return hashlib.sha1("app:" + str(self.client_id) + \
+                            # NOQA
                             ":user:" + str(self.user_id) + \
-                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()   # NOQA
+                            # NOQA
+                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def _generate_refresh_token(self):
+        # NOQA
         return hashlib.sha1("app:" + str(self.client_id) + \
+                            # NOQA
                             ":user:" + str(self.user_id) + \
-                            ":access_token:" + str(self.id)).hexdigest()    # NOQA
+                            # NOQA
+                            ":access_token:" + str(self.id)).hexdigest()
 
     def contains_scope(scope):
         return scope in self.scope.split(' ')
@@ -269,12 +276,16 @@ class Code(db.Model):
         return []
 
     def generate_new_code(self, client_id):
+        # NOQA
         return hashlib.sha1("secret:" + client_id + ":req:" + \
-                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()   #NOQA
+                            # NOQA
+                            str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def get_device_code(self):
+        # NOQA
         return hmac.new(OUR_KEY, "secret:" + \
-                        str(self.id), hashlib.sha1).hexdigest()     #NOQA
+                        # NOQA
+                        str(self.id), hashlib.sha1).hexdigest()
 
     def exchange_for_access_token(self, app):
         return Token().create_access_token(app.client_id,
@@ -308,8 +319,10 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
     for c in codes:
         db.session.delete(c)
 
+    # NOQA
     expires_in = (AUTH_EXPIRATION_TIME if code is None else \
-                  code.pop('expires_in'))   #NOQA
+                  # NOQA
+                  code.pop('expires_in'))
     expires = datetime.utcnow() + timedelta(seconds=expires_in)
     created = datetime.utcnow()
 
