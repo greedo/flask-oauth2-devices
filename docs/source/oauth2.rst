@@ -241,6 +241,17 @@ user has authorized the device. You don't need to do much::
     def authorize():
         return None
 
+Protect Resource
+````````````````
+
+Protect the resource of a user with ``require_oauth`` decorator now::
+
+    @app.route('/api/me')
+    @oauth.require_oauth('email')
+    def me():
+        user = request.oauth.user
+        return jsonify(email=user.email, username=user.username)
+
 Example for OAuth 2 for devices
 -------------------------------
 
