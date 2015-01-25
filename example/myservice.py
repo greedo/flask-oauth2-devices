@@ -231,19 +231,13 @@ class Token(db.Model):
         return tok
 
     def _generate_token(self):
-        # NOQA
         return hashlib.sha1("app:" + str(self.client_id) + \
-                            # NOQA
                             ":user:" + str(self.user_id) + \
-                            # NOQA
                             str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def _generate_refresh_token(self):
-        # NOQA
         return hashlib.sha1("app:" + str(self.client_id) + \
-                            # NOQA
                             ":user:" + str(self.user_id) + \
-                            # NOQA
                             ":access_token:" + str(self.id)).hexdigest()
 
     def contains_scope(scope):
@@ -276,9 +270,7 @@ class Code(db.Model):
         return []
 
     def generate_new_code(self, client_id):
-        # NOQA
         return hashlib.sha1("secret:" + client_id + ":req:" + \
-                            # NOQA
                             str(hexlify(OpenSSL.rand.bytes(10)))).hexdigest()
 
     def get_device_code(self):
@@ -319,9 +311,7 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
     for c in codes:
         db.session.delete(c)
 
-    # NOQA
     expires_in = (AUTH_EXPIRATION_TIME if code is None else \
-                  # NOQA
                   code.pop('expires_in'))
     expires = datetime.utcnow() + timedelta(seconds=expires_in)
     created = datetime.utcnow()
