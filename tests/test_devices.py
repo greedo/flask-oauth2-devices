@@ -36,10 +36,3 @@ def create_app():
 def app():
     app = create_app()
     return app
-
-
-def test_get_code(client):
-    res = make_response('http://127.0.0.1:5000/oauth/device', 200)
-    res.headers['Authorization'] = 'basic MTIzNDU6MTIzNDU2Nzg5'
-    assert ['device_code', 'user_code', 'authorize_link',
-            'activate_link', 'expires_in', 'interval'] == res.json.keys()

@@ -285,6 +285,7 @@ class Code(db.Model):
                                            app.scopes,
                                            "grant_auth_code")
 
+
 def current_user():
     if 'id' in session:
         uid = session['id']
