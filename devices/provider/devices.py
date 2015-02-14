@@ -248,6 +248,11 @@ class OAuth2DevicesProvider(object):
                     data = request.values
                     auth_code = self._authcodegetter(data.get('auth_code'))
 
+                    device_code = data.get('device_code')
+
+                    if device_code is None and auth_code is None:
+                        return create_response(None, 'Accepted', 202)
+
                     if auth_code is None:
                         raise OAuth2Exception(
                             'This token could not be found',
@@ -261,12 +266,10 @@ class OAuth2DevicesProvider(object):
                             type='invalid_token'
                         )
 
-                    device_code = data.get('device_code')
-
                     if auth_code.is_active == 0:
                         raise OAuth2Exception(
-                            'You have not authorized this device code yet',
-                            type='not_authorized'
+                            'The user has rejected this connection',
+                            type='rejected_connection'
                         )
 
                     if auth_code.get_device_code() != device_code:
