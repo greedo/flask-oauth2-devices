@@ -509,11 +509,20 @@ class OAuth2DevicesProvider(object):
         )
 
 
-class OAuth2Exception(RuntimeError):
-    def __init__(self, message, type=None, data=None):
-        self.message = message
-        self.type = type
-        self.data = data
+class OAuth2Exception(Exception):
+    """ Class for handling API Excpetions and Errors
+    """
 
-    def __str__(self):
-        return self.message.encode('utf-8')
+    status_code = 400
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv

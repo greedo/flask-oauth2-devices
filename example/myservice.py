@@ -3,7 +3,7 @@ import hmac
 import hashlib
 from binascii import hexlify
 from datetime import datetime, timedelta
-from flask import Flask, abort, render_template, make_response, request
+from flask import Flask, abort, render_template, make_response, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask.ext.wtf import Form
 from wtforms import StringField, SelectField
@@ -25,6 +25,12 @@ oauth = OAuth2DevicesProvider(app)
 
 AUTH_EXPIRATION_TIME = 3600
 OUR_KEY = 'our-big-bad-key'
+
+@app.errorhandler(APIException)
+def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
 
 
 @app.route('/oauth/device', methods=['POST'])
