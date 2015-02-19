@@ -1,0 +1,31 @@
+[
+    {
+        "model": "myservice.User",
+        "records": [{
+            "id": "1",
+            "username": "Bo Jenkins"
+        }]
+    },
+    {
+        "model": "myservice.Client",
+        "records": [{
+            "client_id": "12345",
+            "client_secret": "123456789",
+            "user_id": "1",
+            "_redirect_uris": "http://fail.com",
+            "_default_scopes": "read"
+        }]
+    },
+    {
+        "model": "myservice.Token",
+        "records": [{
+            "id": "1",
+            "client_id": "12345",
+            "user_id": "1",
+            "token_type": "grant_auth_code",
+            "access_token": "63acb93e1f6e82226542d0df8b9dc0828f320b20",
+            "refresh_token": "bdc6802d2e9c928b8e47b26fdff6cf173628ed9",
+            "_scopes": "read"
+        }]
+    }
+]
