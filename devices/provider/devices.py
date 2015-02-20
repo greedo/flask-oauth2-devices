@@ -251,7 +251,7 @@ class OAuth2DevicesProvider(object):
                     device_code = data.get('device_code')
 
                     if device_code is None and auth_code is None:
-                        return create_response(None, 'Accepted', 202)
+                        return create_response({}, 'Accepted', 202)
 
                     if auth_code is None:
                         raise OAuth2Exception(

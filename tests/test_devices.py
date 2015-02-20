@@ -61,4 +61,4 @@ class TestViews(TestCase):
         response = self.client.post("/oauth/device/authorize",
                                     headers={'Authorization':
                                              'basic ' + self.token})
-        self.assert401(response)
+        self.assertEquals(response.status_code, 202)

@@ -17,7 +17,7 @@ app = Flask(__name__)
 app.config.update(
     WTF_CSRF_ENABLED=True,
     SECRET_KEY='our-big-bad-key',
-    FIXTURES_DIRS = ['tests/fixtures']
+    FIXTURES_DIRS=['tests/fixtures']
 )
 app.config.update({
     'SQLALCHEMY_DATABASE_URI': 'sqlite:///db.sqlite'

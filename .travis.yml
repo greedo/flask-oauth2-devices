@@ -10,4 +10,4 @@ install:
 # command to run tests
 script:
     - nosetests
-    - pep8 --exclude='./docs' --ignore=E502
+    - pep8 --exclude='./docs' --ignore=E502,E402
