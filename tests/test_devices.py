@@ -34,7 +34,7 @@ db.drop_all()
 db.create_all()
 
 
-@fixtures('tests/fixtures/oauth2_models.json')
+@fixtures('oauth2_models.json')
 class TestViews(TestCase):
 
     def create_app(self):

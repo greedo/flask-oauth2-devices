@@ -16,7 +16,8 @@ from forms import ActivateForm
 app = Flask(__name__)
 app.config.update(
     WTF_CSRF_ENABLED=True,
-    SECRET_KEY='our-big-bad-key'
+    SECRET_KEY='our-big-bad-key',
+    FIXTURES_DIRS = ['tests/fixtures']
 )
 app.config.update({
     'SQLALCHEMY_DATABASE_URI': 'sqlite:///db.sqlite'
@@ -28,7 +29,7 @@ AUTH_EXPIRATION_TIME = 3600
 OUR_KEY = 'our-big-bad-key'
 
 
-@app.errorhandler(APIException)
+@app.errorhandler(OAuth2Exception)
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
@@ -328,7 +329,7 @@ def save_auth_code(code, client_id, user_id, *args, **kwargs):
         client_id=client_id,
         user_id=user_id,
         code=(None if code is None else code['code']),
-        _scopes = ('public private' if code is None else code['scope']),
+        _scopes=('public private' if code is None else code['scope']),
         expires=expires,
         created=created,
         is_active=0
