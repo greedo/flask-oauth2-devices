@@ -3,5 +3,7 @@ pep8
 Flask
 Flask-SQLAlchemy
 Flask-WTF
+Flask-Fixtures
+Flask-Testing
 pyOpenSSL
 six
