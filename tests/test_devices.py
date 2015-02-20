@@ -33,7 +33,8 @@ fixtures = Fixtures(app, db)
 db.drop_all()
 db.create_all()
 
-@fixtures('/home/joe/Projects/flask-oauth2-devices/tests/fixtures/oauth2_models.json')
+
+@fixtures('tests/fixtures/oauth2_models.json')
 class TestViews(TestCase):
 
     def create_app(self):
@@ -49,11 +50,15 @@ class TestViews(TestCase):
     def test_post_device_code(self):
         """Posting device code for a new unauthenticated device"""
 
-        response = self.client.post("/oauth/device", headers={'Authorization': 'basic ' + self.token})
+        response = self.client.post("/oauth/device",
+                                    headers={'Authorization':
+                                             'basic ' + self.token})
         self.assert200(response)
 
     def test_get_device_code(self):
         """Authorize a new device"""
 
-        response = self.client.post("/oauth/device/authorize", headers={'Authorization': 'basic ' + self.token})
+        response = self.client.post("/oauth/device/authorize",
+                                    headers={'Authorization':
+                                             'basic ' + self.token})
         self.assert401(response)
