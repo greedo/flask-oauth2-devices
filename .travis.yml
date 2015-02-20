@@ -9,5 +9,5 @@ install:
 
 # command to run tests
 script:
-    - py.test --tb=line -vs
+    - nosetests
     - pep8 --exclude='./docs' --ignore=E502
