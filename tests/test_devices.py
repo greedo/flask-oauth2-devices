@@ -53,10 +53,24 @@ class TestViews(TestCase):
         response = self.client.post("/oauth/device",
                                     headers={'Authorization':
                                              'basic ' + self.token})
+
+        self.assertEquals(len(response.json['device_code']), 40)
+        self.assertEquals(response.json['interval'], 600)
+        self.assertEquals(response.json['activate_link'],
+                          'https://example.com/activate')
+        self.assertEquals(response.json['expires_in'], 600)
+        self.assertEquals(response.json['authorize_link'],
+                          'https://api.example.com/oauth/device/authorize')
         self.assert200(response)
 
     def test_get_device_code(self):
-        """Authorize a new device"""
+        """Authorizing a new device code with GET"""
+
+        response = self.client.get("/oauth/device/authorize")
+        self.assert405(response)
+
+    def test_post_authorize_device_code(self):
+        """Authorize a new device, no device_code or auth_code"""
 
         response = self.client.post("/oauth/device/authorize",
                                     headers={'Authorization':

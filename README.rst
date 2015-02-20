@@ -33,17 +33,17 @@ Requirements
 Testing
 -------
 
-To run the unit tests, you need pytest
+To run the unit tests, nose
 
 ::
 
-    pip install pytest
+    pip install nose
 
 Once you have that, ``cd`` into the root directory of this repo and
 
 ::
 
-    py.test --tb=line -vs
+    nosetests
     
 Bugs
 -------
